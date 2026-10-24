@@ -1,5 +1,0 @@
-Invoice_Number,Invoice_Date,Customer_Name,Customer_Phone,GSTIN,Invoice_Amount,Tax_Amount,Payment_Mode,Retention_Statutory_Reason
-INV-2017-001,2017-04-12,Old Client Ramesh,9845012345,29AAAAA0000A1Z5,14500.00,2610.00,NEFT,Expired - More than 6 Years Old (Eligible for Full Erasure)
-INV-2023-882,2023-11-05,Ananya Rao,9845112233,29BBBBB1111B1Z2,4200.00,756.00,UPI,Mandatory Retention under CGST Act Section 36 until 2029-12-31
-INV-2024-104,2024-02-14,Vikram Malhotra,9741223344,29CCCCC2222C1Z9,8900.00,1602.00,Credit Card,Mandatory Retention under CGST Act Section 36 until 2030-12-31
-INV-2024-309,2024-09-15,Deepa Nair,9988776655,29DDDDD3333D1Z1,12000.00,2160.00,UPI,Mandatory Retention under CGST Act Section 36 until 2030-12-31

@@ -1,3 +1,14 @@
+# Keep only README.md in git for Round 1 Evaluation
+verify_dpdp_core.py
+data/
+*.pdf
+LS04_Deep_Analysis_Master_Blueprint.md
+LS-04_InDepth_Analysis_Implementation_Blueprint.md
+Legal_Services_Deep_Analysis_Decision_Framework.md
+Legal_Services_Problem_Statements_Analysis.md
+Rules.md
+Srujana_2026_Participant_Evaluation_Rubric.pdf
+
 # Python
 __pycache__/
 *.py[cod]
