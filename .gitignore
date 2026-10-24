@@ -1,16 +1,4 @@
-# Keep only README.md in git for Round 1 Evaluation
-verify_dpdp_core.py
-generate_presentation.py
-*.pptx
-data/
-*.pdf
-LS04_Deep_Analysis_Master_Blueprint.md
-LS-04_InDepth_Analysis_Implementation_Blueprint.md
-Legal_Services_Deep_Analysis_Decision_Framework.md
-Legal_Services_Problem_Statements_Analysis.md
-Rules.md
-Srujana_2026_Participant_Evaluation_Rubric.pdf
-IMPLEMENTATION_PLAN_PROMPT.md
+# DPDPA for Small Business - Git ignore
 
 # Python
 __pycache__/
@@ -42,6 +30,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+dist/
+build/
+.vite/
 
 # Environment & Secrets
 .env
@@ -57,3 +48,29 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# OS
+*.tmp
+*.bak
+
+# Logs
+*.log
+
+# Local Prototype Codebases & Hackathon Work (kept local until explicit push instruction)
+google_gemini/
+backend/
+frontend/
+data/
+*.pptx
+*.pdf
+generate_presentation.py
+verify_dpdp_core.py
+start.ps1
+start.sh
+IMPLEMENTATION_PLAN.md
+IMPLEMENTATION_PLAN_PROMPT.md
+LS-04_InDepth_Analysis_Implementation_Blueprint.md
+LS04_Deep_Analysis_Master_Blueprint.md
+Legal_Services_Deep_Analysis_Decision_Framework.md
+Legal_Services_Problem_Statements_Analysis.md
+Rules.md
