@@ -154,15 +154,27 @@ journey
 
 ---
 
-## 7. 48-Hour Implementation Roadmap & Milestone Progress
+## 7. Official Evaluation Criteria & Hackathon Schedule
 
+### Official 100-Point Evaluation Rubric
+| Criterion | Weight | Key Expectations from Evaluation Guide |
+|---|---|---|
+| **Problem Statement** | **15 pts** | Alignment with LS-04, clarity, depth of understanding, intended SME users, assumptions, and constraints. |
+| **Tech Strategy** | **20 pts** | 100% Offline-First architecture, tool selection (React + FastAPI + openpyxl), data design, and technical planning. |
+| **Implementation** | **25 pts** | Execution quality, working prototype, code logic, functional completeness, reliability, and automated testing. |
+| **Presentation** | **20 pts** | Clear storytelling, demo quality, ability to answer tough questions and explain design decisions. |
+| **Viability & Impact** | **20 pts** | Real-world usefulness for 63M Indian MSMEs, practical feasibility, risk management, and scalability. |
+
+### Official Hackathon Milestones
 ```mermaid
 timeline
-    title 48-Hour Hackathon Progress & Roadmap
-    Hour 0-12 (Round 1: Current Checkpoint) : Problem scope finalized (LS-04) : Statutory mapping & tax conflict resolution modeled : Core regex & Verhoeff algorithm verified : Round 1 evaluation dossier ready
-    Hour 12-24 (Checkpoint 2) : FastAPI backend endpoints connected : openpyxl atomic spreadsheet redactor integrated : Multilingual notice builder operational
-    Hour 24-36 (Checkpoint 3 - Critical) : Full web UI dashboard connected : End-to-end user workflow validated : 3-Minute Demo Video recorded and submitted (Hour 36 Deadline)
-    Hour 36-48 (Final Submission) : Edge-case testing with noisy WhatsApp chats : Final documentation & README verified : Complete repository submitted for jury defense
+    title Srujana Tech Fest 2026: Official Hackathon Schedule
+    Day 1 (10:00 AM Start) : Hackathon begins : Problem statement selection (LS-04) : Jury Connect session
+    Day 2 (11:00 AM) : Evaluation 1 (Progress & Direction) : Problem understanding, tech strategy, early implementation demo
+    Day 2 (10:00 PM) : Evaluation 2 (Implementation & Readiness) : Working functionality, code logic, demo quality, real-world viability
+    Day 3 (8:00 AM) : Shortlist Announcement : Top 10 teams from Legal Services announced
+    Day 3 (10:00 AM) : Final Submission Deadline : Complete code repository and documentation submitted (48 Hours)
+    Day 3 : Final Jury Round : Live presentation to judges followed by Q&A defense
 ```
 
 ---
