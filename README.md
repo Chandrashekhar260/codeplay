@@ -1,5 +1,5 @@
-# BharatPrivacy (SME Privacy OS)
-### Privacy-in-a-Box for Bharat's Small Businesses & Informal Systems
+# DPDPA for Small Business
+### Privacy-in-a-Box for Small Businesses & Informal Systems
 **48-Hour Software Hackathon | Srujana Tech Fest 2026 (24–26 October 2026)**  
 **Theme:** Legal Services | **Problem Statement:** LS-04: Personal Data in Informal Systems  
 
@@ -16,13 +16,13 @@
 
 ---
 
-## 2. What We Are Building: "BharatPrivacy"
+## 2. What We Are Building: "DPDPA for Small Business"
 
-**BharatPrivacy** is an offline-first, local-executable **"Privacy-in-a-Box"** platform designed specifically for Indian micro, small, and medium enterprises (MSMEs). 
+**DPDPA for Small Business** is an offline-first, local-executable **"Privacy-in-a-Box"** platform designed specifically for Indian micro, small, and medium enterprises (MSMEs). 
 
 Small business owners don't have dedicated legal teams, Data Protection Officers (DPOs), or enterprise budgets for software like OneTrust. Their businesses run on **WhatsApp chats, messy Excel spreadsheets, Google Forms, and billing exports**.
 
-BharatPrivacy bridges this critical gap by giving SME founders a simple, automated, and non-technical tool that achieves **demonstrable DPDP Act compliance in under 15 minutes**.
+DPDPA for Small Business bridges this critical gap by giving SME founders a simple, automated, and non-technical tool that achieves **demonstrable DPDP Act compliance in under 15 minutes**.
 
 ```mermaid
 graph TB
@@ -33,7 +33,7 @@ graph TB
         B[Tally / Billing CSV Invoices]
     end
 
-    subgraph CoreEngine [BharatPrivacy Local Engine - 100% Offline]
+    subgraph CoreEngine [DPDPA Local Engine - 100% Offline]
         P1[Pillar 1: PII Scanner & RoPA Mapper]
         P2[Pillar 2: Multilingual Notice & Consent Ledger]
         P3[Pillar 3: Atomic Redaction & GST Conflict Resolver]
@@ -142,8 +142,8 @@ graph TB
   * Staff keep test dues, phone numbers, and addresses across 8 different Excel sheets.
   * Invoices are stored in local accounting software.
 * **The Core Problem:** Ramesh read about the DPDP Act and the ₹250 Crore penalty. He is terrified of a regulatory notice, has no IT department, and cannot afford a ₹3 Lakh privacy consultant.
-* **How BharatPrivacy Solves It in 15 Minutes:**
-  1. Ramesh opens BharatPrivacy and selects his clinic folders.
+* **How DPDPA for Small Business Solves It in 15 Minutes:**
+  1. Ramesh opens DPDPA for Small Business and selects his clinic folders.
   2. The scanner runs in 3 seconds, discovering 6,200 customer records and identifying 420 unencrypted Aadhaar numbers in plain text.
   3. Ramesh clicks **"Generate Clinic Notice"** to produce a WhatsApp opt-in message in Kannada and English for new patients.
   4. When a patient asks to be forgotten, Ramesh types their phone number, clicks **"Redact"**, and receives a verified Erasure Certificate while keeping his GST accounting records intact.
@@ -228,4 +228,4 @@ http://localhost:8000
 ## 9. Professional Boundaries & Compliance Disclaimer
 
 *In accordance with Rule 139 of Srujana Tech Fest 2026 and standard legal industry ethics:*
-> **Disclaimer:** BharatPrivacy is an operational compliance and data discovery tool designed to assist small businesses in implementing technical safeguards under the Digital Personal Data Protection Act, 2023. Automated outputs, notices, and reports do not constitute formal legal counsel or binding legal advice. Businesses should consult a qualified legal professional for complex statutory interpretations.
+> **Disclaimer:** DPDPA for Small Business is an operational compliance and data discovery tool designed to assist small businesses in implementing technical safeguards under the Digital Personal Data Protection Act, 2023. Automated outputs, notices, and reports do not constitute formal legal counsel or binding legal advice. Businesses should consult a qualified legal professional for complex statutory interpretations.
