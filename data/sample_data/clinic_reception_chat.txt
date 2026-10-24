@@ -1,0 +1,12 @@
+[10/10/24, 10:15:22 AM] Aarogya Clinic Reception: Welcome to Aarogya Diagnostics. Please share your prescription and Aadhaar number for appointment registration.
+[10/10/24, 10:17:05 AM] Ramesh Sharma: Hello, I need to book a Fasting Blood Sugar and Lipid Profile test for tomorrow morning.
+[10/10/24, 10:18:14 AM] Aarogya Clinic Reception: Sure sir. Please provide patient full name, age, phone number, and address.
+[10/10/24, 10:19:30 AM] Ramesh Sharma: Patient name is Ramesh Sharma, age 48. Mobile: +91 9845012345. Address: #42, 3rd Cross, Indiranagar, Bengaluru.
+[10/10/24, 10:20:10 AM] Ramesh Sharma: My Aadhaar card number is 3421 8901 2345. My email is ramesh.sharma@example.com.
+[10/10/24, 10:21:45 AM] Aarogya Clinic Reception: Thank you Mr. Sharma. Your appointment is confirmed for 7:30 AM tomorrow. Please pay advance of Rs. 500 via UPI to aarogyaclinic@okhdfcbank.
+[10/10/24, 10:23:10 AM] Ramesh Sharma: Paid Rs. 500 via UPI ref 429182910291 from ramesh@okicici.
+[10/10/24, 10:24:00 AM] Aarogya Clinic Reception: Payment received. See you tomorrow.
+[12/10/24, 4:15:00 PM] Priya Patel: Hi, can I get my thyroid test report on this number?
+[12/10/24, 4:16:20 PM] Aarogya Clinic Reception: Please share your registered mobile number and Patient ID.
+[12/10/24, 4:17:10 PM] Priya Patel: Mobile: 9876543210, Patient ID: PAT-9921, PAN: ABCDE1234F. Email: priya.patel@workmail.in
+[12/10/24, 4:18:00 PM] Aarogya Clinic Reception: Attached report for TSH and Thyroid Panel.

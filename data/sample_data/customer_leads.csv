@@ -1,0 +1,6 @@
+Lead_ID,Customer_Name,Phone_Number,Email_Address,City,Aadhaar_Number,PAN_Number,Inquiry_Date,Status,Notes
+L-101,Ananya Rao,9845112233,ananya.rao@gmail.com,Bengaluru,2841 9012 3456,ABCDE4321A,2024-08-15,Active,Interested in full body health checkup
+L-102,Vikram Malhotra,+91 9741223344,vikram.m@outlook.com,Mysuru,4512 8765 4321,FGHIJ5678B,2024-08-18,Follow_up,Requested home sample collection
+L-103,Suresh Kumar,8765432109,suresh.k@yahoo.in,Hubballi,5623 4123 7890,KLMNO9012C,2024-09-01,Converted,Prescription uploaded via WhatsApp
+L-104,Deepa Nair,9988776655,deepa.nair@corp.com,Bengaluru,6734 5234 8901,PQRST3456D,2024-09-10,Closed,Requested erasure under DPDP Act
+L-105,Mohammed Farooq,9123456780,m.farooq@mail.com,Mangaluru,7845 6345 9012,UVWXY7890E,2024-09-20,Active,Vaccination inquiry for child
