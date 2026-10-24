@@ -121,7 +121,7 @@ graph TB
 
 | Layer | Component | Technical Justification |
 |---|---|---|
-| **Frontend UI** | **Vanilla HTML5, Modern CSS3, JavaScript** | Lightweight, instantaneous load times, zero build tool complexity, modern dark-mode glassmorphic design system. |
+| **Frontend UI** | **React (Vite) + Tailwind / Modern CSS** | Highly responsive component-driven architecture, interactive stateful RoPA data tables, dynamic progress indicators, and modular views for non-technical users. |
 | **Backend Framework** | **Python 3.11+ / FastAPI** | High-performance asynchronous execution, clean RESTful endpoints, self-documenting Swagger/OpenAPI interface. |
 | **Spreadsheet Engine** | **openpyxl & pandas** | Cell-level XML manipulation for Excel; preserves formula dependencies, styles, and sheet structures during atomic redaction. |
 | **PII & Pattern Engine** | **Compiled Python `re` + Verhoeff Algorithm** | Deterministic, zero-hallucination execution; processes 10,000 rows in under 2 seconds locally. |
