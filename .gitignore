@@ -1,5 +1,7 @@
 # Keep only README.md in git for Round 1 Evaluation
 verify_dpdp_core.py
+generate_presentation.py
+*.pptx
 data/
 *.pdf
 LS04_Deep_Analysis_Master_Blueprint.md
