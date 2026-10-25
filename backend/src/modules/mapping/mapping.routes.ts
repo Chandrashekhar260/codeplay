@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createActivityHandler,
+  recommendRetentionHandler,
   addFlowHandler,
   addRecipientHandler,
   addRetentionHandler,
@@ -18,6 +19,7 @@ router.use(authenticate, requireTenant);
 
 // RoPA Activities
 router.post('/activities', createActivityHandler);
+router.post('/activities/retention-recommendation', recommendRetentionHandler);
 router.get('/activities', listActivitiesHandler);
 router.get('/activities/:activityId', getActivityHandler);
 

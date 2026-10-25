@@ -7,6 +7,7 @@ import discoveryRoutes from './modules/discovery/discovery.routes';
 import mappingRoutes from './modules/mapping/mapping.routes';
 import governanceRoutes from './modules/governance/governance.routes';
 import consentRoutes from './modules/consent/consent.routes';
+import dsrRoutes from './modules/dsr/dsr.routes';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/v1/discovery', discoveryRoutes);
 app.use('/api/v1/mapping', mappingRoutes);
 app.use('/api/v1/governance', governanceRoutes);
 app.use('/api/v1/consent', consentRoutes);
+app.use('/api/v1/dsr', dsrRoutes);
 
 // 404 Catch-all Handler
 app.use((req, res) => {

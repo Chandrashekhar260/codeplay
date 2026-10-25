@@ -29,6 +29,10 @@ const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     title: 'Consent Ledger & Multilingual Notices',
     subtitle: 'Affirmative consent collection (WhatsApp/Web) and Section 5 multilingual notices.',
   },
+  dsr: {
+    title: 'Data Subject Requests (DSR)',
+    subtitle: 'Manage and fulfil data principal rights requests under DPDP Act Section 11–13.',
+  },
   audit: {
     title: 'Append-Only Audit Trail',
     subtitle: 'Tamper-evident system ledger of every classification, scan, and consent event.',

@@ -161,6 +161,7 @@ model DataSource {
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   scanJobs         ScanJob[]
   remediationFlags RemediationFlag[]
+  processingActivities ProcessingActivity[]
 
   @@index([tenantId])
   @@map("data_sources")
@@ -218,6 +219,10 @@ model ProcessingActivity {
   name             String   // e.g. "Patient Consultation & Lab Report Dispatch"
   businessFunction String   @map("business_function") // "Diagnostics", "Finance", "Marketing"
   legalBasis       String   @map("legal_basis") // "CONSENT", "STATUTORY_OBLIGATION", "LEGITIMATE_USE"
+  purpose          String?  // Business purpose of the activity
+  retentionDays    Int?     // Retention period in days
+  sourceId         String?  @map("source_id") // optional link to DataSource
+  source           DataSource? @relation(fields: [sourceId], references: [sourceId])
   status           String   @default("ACTIVE")
   createdAt        DateTime @default(now()) @map("created_at")
 
@@ -226,6 +231,7 @@ model ProcessingActivity {
   dataFlows            DataFlow[]
   thirdPartyRecipients ThirdPartyRecipient[]
   retentionPolicies    RetentionPolicy[]
+  dsrRequests          DsrRequest[]
 
   @@index([tenantId])
   @@map("processing_activities")
@@ -374,19 +380,26 @@ model PreferenceCentre {
 // ==========================================
 
 model DsrRequest {
-  requestId        String   @id @default(uuid()) @map("request_id")
-  tenantId         String   @map("tenant_id")
-  requestType      String   @map("request_type") // "ACCESS", "CORRECTION", "ERASURE", "GRIEVANCE"
-  status           String   @default("SUBMITTED") // "SUBMITTED", "IN_REVIEW", "RETAINED_TAX_CONFLICT", "COMPLETED", "REJECTED"
-  userRef          String   @map("user_ref") // Principal identifier (e.g. phone/email)
-  assignedTo       String?  @map("assigned_to")
-  taxRetentionLock Boolean  @default(false) @map("tax_retention_lock") // CGST Sec 36 6-year retention
-  sha256Proof      String?  @map("sha256_proof")
-  dueDate          DateTime? @map("due_date")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  requestId          String    @id @default(uuid()) @map("request_id")
+  tenantId           String    @map("tenant_id")
+  requestType        String    @map("request_type") // "ACCESS", "CORRECTION", "ERASURE", "GRIEVANCE"
+  status             String    @default("SUBMITTED") // "SUBMITTED", "IN_REVIEW", "RETAINED_TAX_CONFLICT", "COMPLETED", "REJECTED"
+  userRef            String    @map("user_ref") // Principal identifier (e.g. phone/email)
+  details            String?
+  fieldToCorrect     String?   @map("field_to_correct")
+  currentValue       String?   @map("current_value")
+  correctedValue     String?   @map("corrected_value")
+  affectedActivityId String?   @map("affected_activity_id")
+  resolutionNotes    String?   @map("resolution_notes")
+  assignedTo         String?   @map("assigned_to")
+  taxRetentionLock   Boolean   @default(false) @map("tax_retention_lock") // CGST Sec 36 / NMC retention
+  sha256Proof        String?   @map("sha256_proof")
+  dueDate            DateTime? @map("due_date")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activity           ProcessingActivity? @relation(fields: [affectedActivityId], references: [activityId])
 
   @@index([tenantId, status])
   @@map("dsr_requests")

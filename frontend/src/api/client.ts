@@ -10,6 +10,8 @@ import type {
   Purpose,
   ConsentRecord,
   ConsentNotice,
+  DsrRequest,
+  UserTraversalReport,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -100,9 +102,30 @@ export const api = {
       name: string;
       businessFunction: string;
       legalBasis: string;
+      purpose?: string;
+      retentionMonths?: number;
+      retentionDays?: number;
+      triggerEvent?: string;
       sourceId?: string;
     }): Promise<ProcessingActivity> => {
       const res = await apiClient.post('/mapping/activities', data);
+      return res.data.data;
+    },
+    getRetentionRecommendation: async (params: {
+      sourceId?: string;
+      businessFunction?: string;
+      purpose?: string;
+      piiCategories?: string[];
+    }): Promise<{
+      retentionPeriodMonths: number;
+      retentionDays: number;
+      triggerEvent: string;
+      statutoryReference: string;
+      matchedRule: string;
+      description: string;
+      detectedPiiCategories: string[];
+    }> => {
+      const res = await apiClient.post('/mapping/activities/retention-recommendation', params);
       return res.data.data;
     },
   },
@@ -161,6 +184,49 @@ export const api = {
     getUserLedger: async (userRef: string): Promise<ConsentRecord[]> => {
       const res = await apiClient.get(`/consent/records/user/${encodeURIComponent(userRef)}`);
       return res.data.data.records;
+    },
+  },
+
+  // DSR & Data Principal Privacy Portal (DPDP Sec 11 & 12)
+  dsr: {
+    traverseUserGraph: async (userRef: string): Promise<UserTraversalReport> => {
+      const res = await apiClient.post('/dsr/portal/traverse', { userRef });
+      return res.data.data;
+    },
+    submitPortalRequest: async (data: {
+      requestType: 'ACCESS' | 'CORRECTION' | 'ERASURE' | 'GRIEVANCE';
+      userRef: string;
+      details: string;
+      fieldToCorrect?: string;
+      currentValue?: string;
+      correctedValue?: string;
+      affectedActivityId?: string;
+    }): Promise<DsrRequest> => {
+      const res = await apiClient.post('/dsr/portal/submit', data);
+      return res.data.data;
+    },
+    getRequests: async (): Promise<DsrRequest[]> => {
+      const res = await apiClient.get('/dsr/requests');
+      return res.data.data;
+    },
+    getAlerts: async (): Promise<{
+      totalPending: number;
+      requests: DsrRequest[];
+      alertsByActivity: Record<string, any[]>;
+    }> => {
+      const res = await apiClient.get('/dsr/alerts');
+      return res.data.data;
+    },
+    resolveRequest: async (
+      requestId: string,
+      data: {
+        resolution: 'APPROVE_CORRECTION' | 'APPROVE_ERASURE' | 'RETAIN_TAX_CONFLICT' | 'REJECT';
+        resolutionNotes: string;
+        correctedValueOverride?: string;
+      }
+    ): Promise<DsrRequest> => {
+      const res = await apiClient.post(`/dsr/requests/${requestId}/resolve`, data);
+      return res.data.data;
     },
   },
 };

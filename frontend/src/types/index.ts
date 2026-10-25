@@ -67,15 +67,27 @@ export interface DataFlow {
   location: string;
 }
 
+export interface RetentionPolicy {
+  retentionPolicyId: string;
+  activityId?: string;
+  retentionPeriodMonths: number;
+  triggerEvent: string;
+}
+
 export interface ProcessingActivity {
   activityId: string;
   name: string;
   businessFunction: string;
   legalBasis: string;
+  purpose?: string | null;
+  retentionDays?: number | null;
+  sourceId?: string | null;
+  source?: DataSource | null;
   status: string;
   createdAt: string;
   dataElements: DataElement[];
   dataFlows: DataFlow[];
+  retentionPolicies?: RetentionPolicy[];
 }
 
 export interface GraphNode {
@@ -189,4 +201,71 @@ export interface AuditEvent {
   diffJson?: string;
   ipAddress?: string;
   createdAt: string;
+}
+
+// ==========================================
+// DSR & Data Principal Rights (DPDP Sec 11 & 12)
+// ==========================================
+export type DsrRequestType = 'ACCESS' | 'CORRECTION' | 'ERASURE' | 'GRIEVANCE';
+export type DsrStatus = 'SUBMITTED' | 'IN_REVIEW' | 'RETAINED_TAX_CONFLICT' | 'COMPLETED' | 'REJECTED';
+
+export interface DsrRequest {
+  requestId: string;
+  requestType: DsrRequestType;
+  status: DsrStatus;
+  userRef: string;
+  details: string;
+  fieldToCorrect?: string | null;
+  currentValue?: string | null;
+  correctedValue?: string | null;
+  affectedActivityId?: string | null;
+  activity?: ProcessingActivity | null;
+  resolutionNotes?: string | null;
+  taxRetentionLock: boolean;
+  sha256Proof?: string | null;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserTraversalReport {
+  userRef: string;
+  personalDataSummary: {
+    piiCategoriesHeld: string[];
+    activeConsentsCount: number;
+    consents: Array<{
+      recordId: string;
+      purposeName: string;
+      status: string;
+      channel: string;
+      capturedAt: string;
+    }>;
+  };
+  dataSources: Array<{
+    sourceId: string;
+    name: string;
+    type: string;
+  }>;
+  processingActivities: Array<{
+    activityId: string;
+    name: string;
+    businessFunction: string;
+    purpose: string;
+    legalBasis: string;
+    retentionMonths: number;
+    retentionTrigger: string;
+    sourceName: string;
+    dataElements: string[];
+  }>;
+  storageSystems: Array<{
+    systemName: string;
+    stage: string;
+    location: string;
+  }>;
+  thirdPartyRecipients: Array<{
+    name: string;
+    type: string;
+    country: string;
+  }>;
+  dsrHistory: DsrRequest[];
 }

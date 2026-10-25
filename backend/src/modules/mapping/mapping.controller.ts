@@ -4,8 +4,25 @@ import {
   createDataFlowSchema,
   createRecipientSchema,
   createRetentionSchema,
+  recommendRetentionSchema,
 } from './mapping.schema';
 import * as mappingService from './mapping.service';
+
+export async function recommendRetentionHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId!;
+    const validated = recommendRetentionSchema.parse(req.body);
+
+    const recommendation = await mappingService.getRetentionRecommendation(tenantId, validated);
+
+    res.status(200).json({
+      success: true,
+      data: recommendation,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createActivityHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

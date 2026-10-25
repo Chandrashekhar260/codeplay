@@ -10,8 +10,19 @@ export const createActivitySchema = z.object({
   name: z.string().min(2, 'Activity name must be at least 2 characters'),
   businessFunction: z.string().min(2, 'Business function is required'), // e.g. "Diagnostics", "Billing", "Marketing"
   legalBasis: z.enum(['CONSENT', 'STATUTORY_OBLIGATION', 'LEGITIMATE_USE', 'CONTRACTUAL']),
+  purpose: z.string().optional(),
+  retentionMonths: z.number().int().positive().optional(),
+  retentionDays: z.number().int().positive().optional(),
+  triggerEvent: z.string().optional(),
   sourceId: z.string().uuid().optional(), // Link to an uploaded file source to auto-import its discovered PII!
   dataElements: z.array(dataElementInputSchema).optional(),
+});
+
+export const recommendRetentionSchema = z.object({
+  sourceId: z.string().uuid().optional(),
+  businessFunction: z.string().optional(),
+  purpose: z.string().optional(),
+  piiCategories: z.array(z.string()).optional(),
 });
 
 export const createDataFlowSchema = z.object({

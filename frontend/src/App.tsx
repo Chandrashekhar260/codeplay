@@ -7,59 +7,93 @@ import { RopaPage } from './pages/RopaPage';
 import { GovernancePage } from './pages/GovernancePage';
 import { ConsentPage } from './pages/ConsentPage';
 import { AuditPage } from './pages/AuditPage';
+import { DsrAdminPage } from './pages/DsrAdminPage';
+import { DataPrincipalPortal } from './pages/DataPrincipalPortal';
 import { LoginModal } from './components/auth/LoginModal';
 import { api } from './api/client';
-import type { DataSource, ProcessingActivity, DataAsset, Purpose } from './types';
+import type { DataSource, ProcessingActivity, DataAsset, Purpose, DsrRequest } from './types';
 
-const navTabs: NavTab[] = ['dashboard', 'discovery', 'ropa', 'governance', 'consent', 'audit'];
+const navTabs: NavTab[] = [
+  'dashboard',
+  'discovery',
+  'ropa',
+  'governance',
+  'consent',
+  'dsr',
+  'audit',
+];
 
 function tabFromHash(): NavTab {
-  const tab = window.location.hash.slice(1) as NavTab;
-  return navTabs.includes(tab) ? tab : 'dashboard';
+  const hash = window.location.hash.slice(1) as NavTab;
+  return navTabs.includes(hash) ? hash : 'dashboard';
 }
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>(tabFromHash);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [tenantName, setTenantName] = useState<string>('Loading Workspace...');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Toggle for Citizen / Data Principal Self-Service Portal
+  const [isPortalView, setIsPortalView] = useState<boolean>(() => {
+    return window.location.hash === '#portal';
+  });
 
   // Live Backend Data States
   const [sources, setSources] = useState<DataSource[]>([]);
   const [activities, setActivities] = useState<ProcessingActivity[]>([]);
   const [assets, setAssets] = useState<DataAsset[]>([]);
   const [purposes, setPurposes] = useState<Purpose[]>([]);
+  const [dsrRequests, setDsrRequests] = useState<DsrRequest[]>([]);
   const [realFindingsCount, setRealFindingsCount] = useState<number>(0);
   const [realFlagsCount, setRealFlagsCount] = useState<number>(0);
   const [realConsentsCount, setRealConsentsCount] = useState<number>(0);
+  const [pendingDsrCount, setPendingDsrCount] = useState<number>(0);
 
   const navigateToTab = (tab: NavTab) => {
-    if (tab === currentTab) return;
+    setIsPortalView(false);
     window.history.pushState({ tab }, '', `#${tab}`);
     setCurrentTab(tab);
+  };
+
+  const openPortalView = () => {
+    setIsPortalView(true);
+    window.history.pushState({ portal: true }, '', '#portal');
+  };
+
+  const closePortalView = () => {
+    setIsPortalView(false);
+    window.history.pushState({ tab: currentTab }, '', `#${currentTab}`);
+    loadWorkspaceData();
   };
 
   // Live Data Loader — Direct from PostgreSQL Backend
   const loadWorkspaceData = async () => {
     setIsRefreshing(true);
     try {
-      const [srcData, actData, astData, purpData, tenantData] = await Promise.all([
-        api.discovery.getSources(),
-        api.mapping.getActivities(),
-        api.governance.getAssets(),
-        api.consent.getPurposes(),
-        api.auth.getTenant(),
-      ]);
+      const [srcData, actData, astData, purpData, tenantData, dsrAlerts, dsrList] =
+        await Promise.all([
+          api.discovery.getSources().catch(() => []),
+          api.mapping.getActivities().catch(() => []),
+          api.governance.getAssets().catch(() => []),
+          api.consent.getPurposes().catch(() => []),
+          api.auth.getTenant().catch(() => null),
+          api.dsr.getAlerts().catch(() => ({ totalPending: 0 })),
+          api.dsr.getRequests().catch(() => []),
+        ]);
 
       setSources(srcData);
       setActivities(actData);
       setAssets(astData);
       setPurposes(purpData);
+      setDsrRequests(dsrList);
+      setPendingDsrCount(dsrAlerts.totalPending || 0);
+
       if (tenantData?.name) {
         setTenantName(tenantData.name);
       }
 
-      // Read real counts directly from PostgreSQL database via tenant API
       setRealConsentsCount(tenantData?.counts?.consentRecords || 0);
 
       // Fetch actual findings and flags from the data sources
@@ -86,16 +120,20 @@ export function App() {
 
   // Authenticate and load live data
   useEffect(() => {
-    if (!window.location.hash || !navTabs.includes(window.location.hash.slice(1) as NavTab)) {
-      window.history.replaceState({ tab: currentTab }, '', `#${currentTab}`);
-    }
-
-    const handlePopState = () => setCurrentTab(tabFromHash());
+    const handlePopState = () => {
+      if (window.location.hash === '#portal') {
+        setIsPortalView(true);
+      } else {
+        setIsPortalView(false);
+        setCurrentTab(tabFromHash());
+      }
+    };
     const handleUnauthorized = () => setIsAuthenticated(false);
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('datasentinel:unauthorized', handleUnauthorized);
 
     async function initAuth() {
+      setIsAuthChecking(true);
       const existingToken = localStorage.getItem('datasentinel_token');
       if (existingToken) {
         try {
@@ -103,6 +141,7 @@ export function App() {
           setIsAuthenticated(true);
           if (me.tenant?.name) setTenantName(me.tenant.name);
           await loadWorkspaceData();
+          setIsAuthChecking(false);
           return;
         } catch {
           localStorage.removeItem('datasentinel_token');
@@ -121,6 +160,8 @@ export function App() {
         await loadWorkspaceData();
       } catch {
         setIsAuthenticated(false);
+      } finally {
+        setIsAuthChecking(false);
       }
     }
 
@@ -131,24 +172,45 @@ export function App() {
     };
   }, []);
 
+  // 1. Citizen / Data Principal Self-Service Portal (Public access)
+  if (isPortalView) {
+    return <DataPrincipalPortal onBackToAdmin={closePortalView} />;
+  }
+
+  // 2. Authentication Loading / Login State
+  if (isAuthChecking) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-medium text-slate-400">Connecting to DataSentinel DPDP Workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <LoginModal
+        onLoginSuccess={(data) => {
+          setIsAuthenticated(true);
+          if (data.tenant?.name) setTenantName(data.tenant.name);
+          loadWorkspaceData();
+        }}
+      />
+    );
+  }
+
+  // 3. Authenticated Enterprise Dashboard
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans">
-      {/* If not authenticated, show login form */}
-      {!isAuthenticated && (
-        <LoginModal
-          onLoginSuccess={(data) => {
-            setIsAuthenticated(true);
-            if (data.tenant?.name) setTenantName(data.tenant.name);
-            loadWorkspaceData();
-          }}
-        />
-      )}
-
       {/* Persistent Enterprise Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onTabChange={navigateToTab}
         tenantName={tenantName}
+        pendingDsrCount={pendingDsrCount}
+        onLaunchPortal={openPortalView}
       />
 
       {/* Main Content Workspace */}
@@ -197,6 +259,14 @@ export function App() {
             <ConsentPage
               purposes={purposes}
               onConsentRecorded={loadWorkspaceData}
+            />
+          )}
+
+          {currentTab === 'dsr' && (
+            <DsrAdminPage
+              requests={dsrRequests}
+              onDsrResolved={loadWorkspaceData}
+              onLaunchPortal={openPortalView}
             />
           )}
 
