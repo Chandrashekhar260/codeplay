@@ -38,6 +38,9 @@ build/
 .env
 .env.local
 .env.*.local
+*.db
+*.db-journal
+*.db-wal
 
 # IDE / System
 .vscode/
@@ -56,11 +59,10 @@ Desktop.ini
 # Logs
 *.log
 
-# Local Prototype Codebases & Hackathon Work (kept local until explicit push instruction)
+# Local Prototype Codebases & Hackathon Work
 google_gemini/
-backend/
-frontend/
 data/
+uploads/
 *.pptx
 *.pdf
 generate_presentation.py

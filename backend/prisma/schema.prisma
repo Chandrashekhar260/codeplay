@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// 1. PLATFORM & TENANCY (Photo 2: platform-service)
+// ==========================================
+
+model Tenant {
+  id        String   @id @default(uuid()) @map("tenant_id")
+  name      String
+  plan      String   @default("STARTER") // FREE, STARTER, GROWTH, ENTERPRISE
+  status    String   @default("ACTIVE")  // ACTIVE, SUSPENDED, DEACTIVATED
+  createdAt DateTime @default(now())     @map("created_at")
+  updatedAt DateTime @updatedAt          @map("updated_at")
+
+  users             User[]
+  roles             Role[]
+  apiKeys           ApiKey[]
+  auditEvents       AuditEvent[]
+  dataSources       DataSource[]
+  purposes          Purpose[]
+  consentRecords    ConsentRecord[]
+  dsrRequests       DsrRequest[]
+  incidents         Incident[]
+  processingActivities ProcessingActivity[]
+  dataAssets        DataAsset[]
+  collectionPoints  CollectionPoint[]
+  preferenceCentres PreferenceCentre[]
+
+  @@map("tenants")
+}
+
+model Role {
+  roleCode    String   @map("role_code")
+  tenantId    String   @map("tenant_id")
+  name        String
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles   UserRole[]
+
+  @@id([tenantId, roleCode])
+  @@map("roles")
+}
+
+model Permission {
+  permissionCode String @id @map("permission_code")
+  productCode    String @map("product_code")
+  description    String
+
+  @@map("permissions")
+}
+
+model UserRole {
+  tenantId  String @map("tenant_id")
+  userId    String @map("user_id")
+  roleCode  String @map("role_code")
+
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role   @relation(fields: [tenantId, roleCode], references: [tenantId, roleCode], onDelete: Cascade)
+
+  @@id([tenantId, userId, roleCode])
+  @@map("user_roles")
+}
+
+// ==========================================
+// 2. AUTHENTICATION (Photo 2: auth-service)
+// ==========================================
+
+model User {
+  id              String   @id @default(uuid()) @map("user_id")
+  tenantId        String   @map("tenant_id")
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  firstName       String?  @map("first_name")
+  lastName        String?  @map("last_name")
+  isPlatformAdmin Boolean  @default(false) @map("is_platform_admin")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt      @map("updated_at")
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshTokens   RefreshToken[]
+  userRoles       UserRole[]
+  auditEvents     AuditEvent[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  tokenId   String   @id @default(uuid()) @map("token_id")
+  userId    String   @map("user_id")
+  tenantId  String   @map("tenant_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  keyId     String   @id @default(uuid()) @map("key_id")
+  tenantId  String   @map("tenant_id")
+  name      String
+  keyHash   String   @map("key_hash")
+  keyPrefix String   @map("key_prefix")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// ==========================================
+// 3. AUDIT & LOGGING (Photo 2: audit-service)
+// ==========================================
+
+model AuditEvent {
+  eventId      String   @id @default(uuid()) @map("event_id")
+  tenantId     String   @map("tenant_id")
+  actorId      String?  @map("actor_id")
+  action       String   // e.g. "AUTH_LOGIN", "DATA_SOURCE_UPLOAD", "DSR_CREATED"
+  resourceType String   @map("resource_type") // "TENANT", "USER", "DATA_SOURCE", "DSR"
+  resourceId   String?  @map("resource_id")
+  diffJson     String?  @map("diff_json") // JSON diff of changes
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@map("audit_events")
+}
+
+// ==========================================
+// 4. DISCOVERY (Photo 2: discovery-service)
+// ==========================================
+
+model DataSource {
+  sourceId      String    @id @default(uuid()) @map("source_id")
+  tenantId      String    @map("tenant_id")
+  name          String
+  sourceType    String    @map("source_type")
+  config        String?   // JSON config: { "filePath": "...", "fileSizeBytes": 1234 }
+  status        String    @default("REGISTERED")
+  lastScannedAt DateTime? @map("last_scanned_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scanJobs         ScanJob[]
+  remediationFlags RemediationFlag[]
+
+  @@index([tenantId])
+  @@map("data_sources")
+}
+
+model ScanJob {
+  jobId         String   @id @default(uuid()) @map("job_id")
+  sourceId      String   @map("source_id")
+  tenantId      String   @map("tenant_id")
+  status        String   @default("QUEUED")
+  findingsCount Int      @default(0) @map("findings_count")
+  startedAt     DateTime @default(now()) @map("started_at")
+
+  dataSource   DataSource    @relation(fields: [sourceId], references: [sourceId], onDelete: Cascade)
+  scanFindings ScanFinding[]
+
+  @@index([tenantId, sourceId])
+  @@map("scan_jobs")
+}
+
+model ScanFinding {
+  findingId        String @id @default(uuid()) @map("finding_id")
+  jobId            String @map("job_id")
+  objectName       String @map("object_name")
+  fieldName        String @map("field_name")
+  piiCategories    String @map("pii_categories")
+  sensitivityLevel String @map("sensitivity_level")
+
+  scanJob ScanJob @relation(fields: [jobId], references: [jobId], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("scan_findings")
+}
+
+model RemediationFlag {
+  flagId   String @id @default(uuid()) @map("flag_id")
+  sourceId String @map("source_id")
+  flagType String @map("flag_type")
+  severity String
+  status   String @default("OPEN")
+
+  dataSource DataSource @relation(fields: [sourceId], references: [sourceId], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@map("remediation_flags")
+}
+
+// ==========================================
+// 5. MAPPING & ROPA (Photo 2: mapping-service)
+// ==========================================
+
+model ProcessingActivity {
+  activityId       String   @id @default(uuid()) @map("activity_id")
+  tenantId         String   @map("tenant_id")
+  name             String   // e.g. "Patient Consultation & Lab Report Dispatch"
+  businessFunction String   @map("business_function") // "Diagnostics", "Finance", "Marketing"
+  legalBasis       String   @map("legal_basis") // "CONSENT", "STATUTORY_OBLIGATION", "LEGITIMATE_USE"
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dataElements         DataElement[]
+  dataFlows            DataFlow[]
+  thirdPartyRecipients ThirdPartyRecipient[]
+  retentionPolicies    RetentionPolicy[]
+
+  @@index([tenantId])
+  @@map("processing_activities")
+}
+
+model DataElement {
+  elementId      String @id @default(uuid()) @map("element_id")
+  activityId     String @map("activity_id")
+  piiCategory    String @map("pii_category") // e.g. "PHONE_NUMBER", "AADHAAR", "HEALTH_DATA"
+  dataSubjects   String @map("data_subjects") // e.g. "Patients", "Customers"
+  volumeEstimate String? @map("volume_estimate") // e.g. "1,000 - 5,000"
+
+  activity ProcessingActivity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+
+  @@index([activityId])
+  @@map("data_elements")
+}
+
+model DataFlow {
+  flowId     String  @id @default(uuid()) @map("flow_id")
+  activityId String  @map("activity_id")
+  flowStage  String  @map("flow_stage") // "COLLECTION", "STORAGE", "SHARING", "DISPOSAL"
+  systemName String  @map("system_name") // "WhatsApp", "Local Excel", "Tally ERP"
+  location   String  @default("India")
+  safeguards String? // "Local offline storage", "Role-based restriction"
+
+  activity ProcessingActivity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+
+  @@index([activityId])
+  @@map("data_flows")
+}
+
+model ThirdPartyRecipient {
+  recipientId   String @id @default(uuid()) @map("recipient_id")
+  activityId    String @map("activity_id")
+  name          String // "Meta / WhatsApp", "Tally ERP", "Government Portal"
+  recipientType String @map("recipient_type") // "PROCESSOR", "SUB_PROCESSOR", "AUTHORITY"
+  country       String @default("India")
+
+  activity ProcessingActivity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+
+  @@index([activityId])
+  @@map("third_party_recipients")
+}
+
+model RetentionPolicy {
+  policyId              String @id @default(uuid()) @map("policy_id")
+  activityId            String @map("activity_id")
+  retentionPeriodMonths Int    @map("retention_period_months") // 72 for tax, 36 for health
+  triggerEvent          String @map("trigger_event") // "CONSENT_WITHDRAWAL", "INVOICE_DATE"
+
+  activity ProcessingActivity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+
+  @@index([activityId])
+  @@map("retention_policies")
+}
+
+// ==========================================
+// 6. GOVERNANCE (Photo 2: governance-service)
+// ==========================================
+
+model DataAsset {
+  assetId        String   @id @default(uuid()) @map("asset_id")
+  tenantId       String   @map("tenant_id")
+  name           String
+  type           String   // "SPREADSHEET", "DATABASE", "CHAT_EXPORT", "INVOICE_ARCHIVE"
+  classification String   // "RESTRICTED", "CONFIDENTIAL", "INTERNAL", "PUBLIC" (Resolved by Governance rules)
+  owner          String   // e.g. "Ramesh Kumar (Managing Partner)"
+  steward        String?  // e.g. "Dr. Ananya (Clinical Head)"
+  retentionDays  Int?     @map("retention_days") // (Resolved by Governance rules)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("data_assets")
+}
+
+// ==========================================
+// 7. CONSENT (Photo 2: consent-service)
+// ==========================================
+
+model Purpose {
+  purposeId   String   @id @default(uuid()) @map("purpose_id")
+  tenantId    String   @map("tenant_id")
+  name        String   // "Diagnostic Lab Report Delivery"
+  legalBasis  String   @map("legal_basis") // "DPDPA_SEC_6_CONSENT"
+  version     String   @default("1.0")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  consentRecords ConsentRecord[]
+
+  @@index([tenantId])
+  @@map("purposes")
+}
+
+model ConsentRecord {
+  recordId       String    @id @default(uuid()) @map("record_id")
+  tenantId       String    @map("tenant_id")
+  userRef        String    @map("user_ref") // Phone or Email or Customer ID
+  purposeId      String    @map("purpose_id")
+  status         String    @default("GIVEN") // "GIVEN", "WITHDRAWN", "EXPIRED"
+  channel        String    @default("IN_PERSON_AFFIRMATIVE") // "WHATSAPP_YES", "PAPER_SLIP", "WEB_PORTAL", "RECEPTION_DESK"
+  noticeLanguage String?   @default("en") @map("notice_language") // "en", "hi", "kn"
+  capturedAt     DateTime  @default(now()) @map("captured_at")
+  withdrawnAt    DateTime? @map("withdrawn_at")
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purpose        Purpose   @relation(fields: [purposeId], references: [purposeId], onDelete: Cascade)
+
+  @@index([tenantId, userRef])
+  @@map("consent_records")
+}
+
+model CollectionPoint {
+  cpId         String   @id @default(uuid()) @map("cp_id")
+  tenantId     String   @map("tenant_id")
+  name         String   // e.g. "Dental Clinic Reception Desk", "Online Patient Portal"
+  widgetConfig String?  @map("widget_config") // JSON config: notice copy (EN, HI, KN), affirmative opt-ins
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("collection_points")
+}
+
+model PreferenceCentre {
+  pcId       String   @id @default(uuid()) @map("pc_id")
+  tenantId   String   @map("tenant_id")
+  name       String   // e.g. "Patient Communication Preferences"
+  slug       String   // unique slug for self-service link: "aarogya-prefs"
+  configJson String?  @map("config_json") // JSON config: purpose toggles, channels
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, slug])
+  @@map("preference_centres")
+}
+
+// ==========================================
+// 7. DATA RIGHTS / DPRR (Photo 2: privacy-rights)
+// ==========================================
+
+model DsrRequest {
+  requestId        String   @id @default(uuid()) @map("request_id")
+  tenantId         String   @map("tenant_id")
+  requestType      String   @map("request_type") // "ACCESS", "CORRECTION", "ERASURE", "GRIEVANCE"
+  status           String   @default("SUBMITTED") // "SUBMITTED", "IN_REVIEW", "RETAINED_TAX_CONFLICT", "COMPLETED", "REJECTED"
+  userRef          String   @map("user_ref") // Principal identifier (e.g. phone/email)
+  assignedTo       String?  @map("assigned_to")
+  taxRetentionLock Boolean  @default(false) @map("tax_retention_lock") // CGST Sec 36 6-year retention
+  sha256Proof      String?  @map("sha256_proof")
+  dueDate          DateTime? @map("due_date")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("dsr_requests")
+}
+
+// ==========================================
+// 8. INCIDENTS & BREACH (Photo 2: incidents)
+// ==========================================
+
+model Incident {
+  incidentId   String   @id @default(uuid()) @map("incident_id")
+  tenantId     String   @map("tenant_id")
+  title        String
+  severity     String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  status       String   @default("OPEN") // "OPEN", "CONTAINED", "NOTIFIED_DPBI", "RESOLVED"
+  affectedRows Int      @default(0) @map("affected_rows")
+  detectedAt   DateTime @default(now()) @map("detected_at")
+  description  String?
+  remediation  String?
+  dpbiNotified Boolean  @default(false) @map("dpbi_notified")
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("incidents")
+}
