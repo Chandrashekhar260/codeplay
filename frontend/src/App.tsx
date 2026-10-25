@@ -8,6 +8,7 @@ import { GovernancePage } from './pages/GovernancePage';
 import { ConsentPage } from './pages/ConsentPage';
 import { AuditPage } from './pages/AuditPage';
 import { DsrAdminPage } from './pages/DsrAdminPage';
+import { CookieGovernancePage } from './pages/CookieGovernancePage';
 import { DataPrincipalPortal } from './pages/DataPrincipalPortal';
 import { LoginModal } from './components/auth/LoginModal';
 import { api } from './api/client';
@@ -20,6 +21,7 @@ const navTabs: NavTab[] = [
   'governance',
   'consent',
   'dsr',
+  'cookies',
   'audit',
 ];
 
@@ -269,6 +271,8 @@ export function App() {
               onLaunchPortal={openPortalView}
             />
           )}
+
+          {currentTab === 'cookies' && <CookieGovernancePage />}
 
           {currentTab === 'audit' && <AuditPage />}
         </main>

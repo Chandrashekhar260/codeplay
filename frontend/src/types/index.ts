@@ -190,6 +190,37 @@ export interface ConsentNotice {
   affirmativeStatement: string;
 }
 
+export interface ConsentAnalytics {
+  total: number;
+  active: number;
+  withdrawn: number;
+  activeRate: number;
+  channels: Record<string, number>;
+  languages: Record<string, number>;
+  purposes: Array<{
+    purposeId: string;
+    name: string;
+    count: number;
+    active: number;
+  }>;
+}
+
+export interface ConsentReceipt {
+  receiptId: string;
+  recordId: string;
+  dataPrincipal: string;
+  organization: string;
+  purpose: string;
+  legalBasis: string;
+  status: string;
+  channel: string;
+  noticeLanguage: string;
+  capturedAt: string;
+  withdrawnAt?: string | null;
+  statutoryMandate: string;
+  sha256Proof: string;
+}
+
 // ==========================================
 // Audit Event Type
 // ==========================================
@@ -228,8 +259,39 @@ export interface DsrRequest {
   updatedAt: string;
 }
 
+export interface BusinessInfo {
+  tenantId: string;
+  name: string;
+  website: string;
+}
+
+export interface DsrTrackReport {
+  requestId: string;
+  requestType: DsrRequestType;
+  status: DsrStatus;
+  userRef: string;
+  details: string;
+  fieldToCorrect?: string | null;
+  currentValue?: string | null;
+  correctedValue?: string | null;
+  taxRetentionLock: boolean;
+  resolutionNotes?: string | null;
+  sha256Proof?: string | null;
+  dueDate?: string | null;
+  daysRemaining?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  businessInfo: BusinessInfo;
+  affectedActivity?: {
+    name: string;
+    businessFunction: string;
+    sourceName?: string;
+  } | null;
+}
+
 export interface UserTraversalReport {
   userRef: string;
+  businessInfo?: BusinessInfo;
   personalDataSummary: {
     piiCategoriesHeld: string[];
     activeConsentsCount: number;
@@ -269,3 +331,59 @@ export interface UserTraversalReport {
   }>;
   dsrHistory: DsrRequest[];
 }
+
+// ==========================================
+// Cookie Consent & Website Scanner Types
+// ==========================================
+export type CookieCategory = 'NECESSARY' | 'ANALYTICS' | 'MARKETING' | 'FUNCTIONAL';
+
+export interface DetectedCookie {
+  id: string;
+  name: string;
+  category: CookieCategory;
+  provider: string;
+  domain: string;
+  expiry: string;
+  expiryDays: number;
+  purpose: string;
+  legalBasis: string;
+  secure: boolean;
+  httpOnly: boolean;
+  scriptSource?: string;
+}
+
+export interface CookieScanSummary {
+  scannedUrl: string;
+  scannedAt: string;
+  totalCookies: number;
+  byCategory: {
+    NECESSARY: number;
+    ANALYTICS: number;
+    MARKETING: number;
+    FUNCTIONAL: number;
+  };
+  highRiskCount: number;
+  complianceRating: 'A' | 'B' | 'C' | 'D';
+  dpdpNoticeRequired: boolean;
+  detectedCookies: DetectedCookie[];
+}
+
+export interface CookieStats {
+  totalVisitorImpressions: number;
+  optInRate: number;
+  marketingRate: number;
+  analyticsAcceptedCount: number;
+  marketingAcceptedCount: number;
+  allRejectedCount: number;
+  recentLogs: Array<{
+    logId: string;
+    visitorId: string;
+    accepted: CookieCategory[];
+    rejected: CookieCategory[];
+    timestamp: string;
+    sha256Proof: string;
+    userAgent?: string;
+  }>;
+}
+
+

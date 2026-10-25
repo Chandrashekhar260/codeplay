@@ -96,8 +96,16 @@ export async function traverseUserGraph(tenantId: string, userRef: string) {
     orderBy: { createdAt: 'desc' },
   });
 
+  // Fetch tenant info
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+
   return {
     userRef: cleanRef,
+    businessInfo: {
+      tenantId,
+      name: tenant?.name || 'Enterprise Clinic / Business',
+      website: tenant?.name?.toLowerCase().includes('aarogya') ? 'aarogyadiagnostics.in' : 'enterprise.in',
+    },
     personalDataSummary: {
       piiCategoriesHeld: Array.from(distinctPiiCategories),
       activeConsentsCount: consents.filter((c) => c.status === 'GIVEN').length,
@@ -353,3 +361,129 @@ export async function getActiveDsrAlerts(tenantId: string) {
     alertsByActivity: Object.fromEntries(alertsByActivity),
   };
 }
+
+/**
+ * Public portal: Get list of active registered businesses/tenants for user selection
+ */
+export async function getPublicBusinesses() {
+  const tenants = await prisma.tenant.findMany({
+    where: { status: 'ACTIVE' },
+    select: {
+      id: true,
+      name: true,
+      plan: true,
+    },
+  });
+
+  return tenants.map((t) => {
+    let domain = 'aarogyadiagnostics.in';
+    if (!t.name.toLowerCase().includes('aarogya')) {
+      domain = t.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+    }
+    return {
+      tenantId: t.id,
+      name: t.name,
+      website: domain,
+    };
+  });
+}
+
+/**
+ * Resolves a tenant by website domain or business name
+ */
+export async function findTenantByWebsiteOrName(query?: string) {
+  if (!query) return null;
+  const clean = query.trim().toLowerCase();
+
+  // Try direct ID match
+  let tenant = await prisma.tenant.findUnique({ where: { id: query.trim() } });
+  if (tenant) return tenant;
+
+  // Try matching name directly
+  tenant = await prisma.tenant.findFirst({
+    where: {
+      name: { contains: clean, mode: 'insensitive' },
+    },
+  });
+  if (tenant) return tenant;
+
+  // If query looks like a domain name (e.g. aarogyadiagnostics.in, aarogya.in)
+  const domainKeyword = clean.replace(/^(https?:\/\/)?(www\.)?/, '').split('.')[0];
+  if (domainKeyword && domainKeyword.length >= 3) {
+    tenant = await prisma.tenant.findFirst({
+      where: {
+        name: { contains: domainKeyword, mode: 'insensitive' },
+      },
+    });
+    if (tenant) return tenant;
+  }
+
+  return null;
+}
+
+/**
+ * Public Portal: Track live present status & resolution of a DSR request by Request ID
+ */
+export async function trackDsrRequest(requestId: string) {
+  const cleanId = requestId.trim();
+  const request = await prisma.dsrRequest.findFirst({
+    where: {
+      OR: [
+        { requestId: cleanId },
+        { sha256Proof: cleanId },
+      ],
+    },
+    include: {
+      activity: {
+        include: {
+          source: true,
+        },
+      },
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!request) {
+    const error: any = new Error(`No statutory request found for ID or Proof: ${cleanId}`);
+    error.status = 404;
+    throw error;
+  }
+
+  const now = new Date();
+  const due = request.dueDate ? new Date(request.dueDate) : null;
+  const daysRemaining = due ? Math.max(0, Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : null;
+
+  return {
+    requestId: request.requestId,
+    requestType: request.requestType,
+    status: request.status,
+    userRef: request.userRef,
+    details: request.details,
+    fieldToCorrect: request.fieldToCorrect,
+    currentValue: request.currentValue,
+    correctedValue: request.correctedValue,
+    taxRetentionLock: request.taxRetentionLock,
+    resolutionNotes: request.resolutionNotes,
+    sha256Proof: request.sha256Proof,
+    dueDate: request.dueDate,
+    daysRemaining,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+    businessInfo: {
+      tenantId: request.tenantId,
+      name: request.tenant.name,
+      website: request.tenant.name.toLowerCase().includes('aarogya') ? 'aarogyadiagnostics.in' : 'enterprise.in',
+    },
+    affectedActivity: request.activity ? {
+      name: request.activity.name,
+      businessFunction: request.activity.businessFunction,
+      sourceName: request.activity.source?.name,
+    } : null,
+  };
+}
+

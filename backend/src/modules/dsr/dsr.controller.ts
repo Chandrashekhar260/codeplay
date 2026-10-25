@@ -3,24 +3,73 @@ import {
   createDsrRequestSchema,
   resolveDsrRequestSchema,
   portalAccessQuerySchema,
+  trackRequestSchema,
 } from './dsr.schema';
 import * as dsrService from './dsr.service';
 
 import { prisma } from '../../lib/prisma';
 
 /**
+ * Public Data Principal Portal: Get directory of registered businesses & websites
+ */
+export async function getBusinessesHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const businesses = await dsrService.getPublicBusinesses();
+    res.status(200).json({
+      success: true,
+      data: businesses,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Public Data Principal Portal: Track live status & DPO resolution of a statutory request
+ */
+export async function trackRequestHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const requestId = req.params.requestId || req.body?.requestId || (req.query?.requestId as string);
+    if (!requestId) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Request ID or SHA-256 proof is required' },
+      });
+      return;
+    }
+
+    const tracked = await dsrService.trackDsrRequest(requestId);
+    res.status(200).json({
+      success: true,
+      data: tracked,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Public Data Principal Portal: Traverse graph to discover user's data & lineage
  */
 export async function portalTraverseHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    let tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string);
+    const parsed = portalAccessQuerySchema.parse(req.body);
+
+    // Resolve tenant by explicit businessWebsite, tenantId, header, or fallback
+    let tenantId = parsed.tenantId;
+    if (!tenantId && parsed.businessWebsite) {
+      const matched = await dsrService.findTenantByWebsiteOrName(parsed.businessWebsite);
+      if (matched) tenantId = matched.id;
+    }
+    if (!tenantId) {
+      tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string);
+    }
     if (!tenantId) {
       const tenant = await prisma.tenant.findFirst();
       tenantId = tenant?.id || 'sample-tenant-aarogya-clinic';
     }
-    const { userRef } = portalAccessQuerySchema.parse(req.body);
 
-    const report = await dsrService.traverseUserGraph(tenantId, userRef);
+    const report = await dsrService.traverseUserGraph(tenantId, parsed.userRef);
 
     res.status(200).json({
       success: true,
@@ -37,12 +86,22 @@ export async function portalTraverseHandler(req: Request, res: Response, next: N
  */
 export async function portalSubmitHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    let tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string);
+    const validated = createDsrRequestSchema.parse(req.body);
+
+    // Resolve tenant by explicit businessWebsite, tenantId, header, or fallback
+    let tenantId = validated.tenantId;
+    if (!tenantId && validated.businessWebsite) {
+      const matched = await dsrService.findTenantByWebsiteOrName(validated.businessWebsite);
+      if (matched) tenantId = matched.id;
+    }
+    if (!tenantId) {
+      tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string);
+    }
     if (!tenantId) {
       const tenant = await prisma.tenant.findFirst();
       tenantId = tenant?.id || 'sample-tenant-aarogya-clinic';
     }
-    const validated = createDsrRequestSchema.parse(req.body);
+
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
 
@@ -57,6 +116,7 @@ export async function portalSubmitHandler(req: Request, res: Response, next: Nex
     next(error);
   }
 }
+
 
 /**
  * Admin: List all DSR requests

@@ -7,6 +7,10 @@ import {
   recordConsentHandler,
   withdrawConsentHandler,
   getUserLedgerHandler,
+  getAllConsentRecordsHandler,
+  getConsentAnalyticsHandler,
+  recordBulkConsentsHandler,
+  getConsentReceiptHandler,
   createCollectionPointHandler,
   getCollectionPointsHandler,
   createPreferenceCentreHandler,
@@ -23,10 +27,14 @@ router.use(authenticate, requireTenant);
 router.post('/purposes', createPurposeHandler);
 router.get('/purposes', getPurposesHandler);
 
-// 2. Consent Records & Ledger
+// 2. Consent Records, Analytics & Enterprise Ledger
+router.get('/records', getAllConsentRecordsHandler);
+router.get('/analytics', getConsentAnalyticsHandler);
 router.post('/records', recordConsentHandler);
+router.post('/records/bulk', recordBulkConsentsHandler);
 router.post('/records/withdraw', withdrawConsentHandler);
 router.get('/records/user/:userRef', getUserLedgerHandler);
+router.get('/records/:recordId/receipt', getConsentReceiptHandler);
 
 // 3. Collection Points (Photo 2)
 router.post('/collection-points', createCollectionPointHandler);

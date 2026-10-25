@@ -11,9 +11,10 @@ import {
   ChevronRight,
   UserCheck,
   ExternalLink,
+  Cookie,
 } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'discovery' | 'ropa' | 'governance' | 'consent' | 'dsr' | 'audit';
+export type NavTab = 'dashboard' | 'discovery' | 'ropa' | 'governance' | 'consent' | 'cookies' | 'dsr' | 'audit';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -36,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'ropa', label: 'RoPA & Data Flow Graph', icon: Network },
     { id: 'governance', label: 'Governance & Retention', icon: Scale },
     { id: 'consent', label: 'Consent & Notices', icon: FileCheck2 },
+    { id: 'cookies', label: 'Cookie & Web Scanner', icon: Cookie },
     { id: 'dsr', label: 'Data Rights (DSR)', icon: UserCheck, badge: pendingDsrCount },
     { id: 'audit', label: 'Immutable Audit Trail', icon: ScrollText },
   ] as const;

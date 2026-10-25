@@ -3,8 +3,27 @@ import {
   Globe2,
   Search,
   ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  Upload,
+  Share2,
+  Filter,
+  RefreshCw,
+  X,
+  Eye,
+  Phone,
+  MessageSquare,
+  Laptop,
+  Check,
+  Lock,
+  ArrowRight,
+  Sparkles,
+  Layers,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
-import type { Purpose, ConsentRecord, ConsentNotice } from '../types';
+import type { Purpose, ConsentRecord, ConsentNotice, ConsentAnalytics, ConsentReceipt } from '../types';
 import { Badge } from '../components/ui/Badge';
 import { api } from '../api/client';
 
@@ -14,80 +33,143 @@ interface ConsentPageProps {
 }
 
 export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRecorded }) => {
-  const [activeTab, setActiveTab] = useState<'notices' | 'ledger' | 'record'>('notices');
+  const [activeTab, setActiveTab] = useState<'ledger' | 'record' | 'notices'>('ledger');
+  const [recordMode, setRecordMode] = useState<'single' | 'bulk'>('single');
+
+  // Analytics & KPIs
+  const [analytics, setAnalytics] = useState<ConsentAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  // Global Ledger State
+  const [allRecords, setAllRecords] = useState<ConsentRecord[]>([]);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'GIVEN' | 'WITHDRAWN'>('ALL');
+  const [channelFilter, setChannelFilter] = useState<string>('ALL');
+
+  // Receipt Modal State
+  const [selectedReceipt, setSelectedReceipt] = useState<ConsentReceipt | null>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
+
+  // Notices State
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi' | 'kn'>('en');
   const [notice, setNotice] = useState<ConsentNotice | null>(null);
-  const [loadingNotice, setLoadingNotice] = useState<boolean>(true);
+  const [loadingNotice, setLoadingNotice] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Patient ledger search state
-  const [searchUserRef, setSearchUserRef] = useState<string>('+919876543210');
-  const [userRecords, setUserRecords] = useState<ConsentRecord[]>([]);
-  const [loadingLedger, setLoadingLedger] = useState<boolean>(false);
-  const [withdrawMessage, setWithdrawMessage] = useState<string | null>(null);
-
-  // Record consent form state
-  const [formUserRef, setFormUserRef] = useState<string>('');
-  const [formPurposeId, setFormPurposeId] = useState<string>('');
-  const [formChannel, setFormChannel] = useState<string>('WHATSAPP_YES');
+  // Single Record Form State
+  const [formUserRef, setFormUserRef] = useState('');
+  const [formPurposeId, setFormPurposeId] = useState('');
+  const [formChannel, setFormChannel] = useState('WHATSAPP_YES');
   const [formLanguage, setFormLanguage] = useState<'en' | 'hi' | 'kn'>('kn');
-  const [formAffirmative, setFormAffirmative] = useState<boolean>(false);
-  const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
+  const [formAffirmative, setFormAffirmative] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Load statutory notice on language change
-  useEffect(() => {
-    async function loadNotice() {
-      setLoadingNotice(true);
-      try {
-        const data = await api.consent.getNotices(selectedLanguage);
-        setNotice(data);
-      } catch (err) {
-        console.error('Failed to load notice:', err);
-      } finally {
-        setLoadingNotice(false);
-      }
-    }
-    loadNotice();
-  }, [selectedLanguage]);
+  // Bulk Import State
+  const [bulkCsvText, setBulkCsvText] = useState(
+    `patient1@aarogya.in,WHATSAPP_YES,en\n+919845012345,IN_PERSON_AFFIRMATIVE,kn\nramesh.kumar@aarogyadiagnostics.in,WEB_PORTAL,hi`
+  );
+  const [bulkPurposeId, setBulkPurposeId] = useState('');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
-  // Load user ledger
-  const fetchUserLedger = async (userRef: string) => {
-    if (!userRef.trim()) return;
-    setLoadingLedger(true);
-    setWithdrawMessage(null);
+  // Load Analytics
+  const loadAnalytics = async () => {
     try {
-      const records = await api.consent.getUserLedger(userRef);
-      setUserRecords(records);
+      setLoadingAnalytics(true);
+      const data = await api.consent.getAnalytics();
+      setAnalytics(data);
     } catch (err) {
-      console.error('Failed to fetch user ledger:', err);
-      setUserRecords([]);
+      console.error('Failed to load consent analytics:', err);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  // Load All Consent Records
+  const loadRecords = async () => {
+    try {
+      setLoadingLedger(true);
+      const records = await api.consent.getAllRecords({
+        status: statusFilter,
+        channel: channelFilter,
+        search: searchQuery,
+      });
+      setAllRecords(records);
+    } catch (err) {
+      console.error('Failed to load consent records:', err);
     } finally {
       setLoadingLedger(false);
     }
   };
 
+  // Load Notices
+  const loadNotice = async (lang: 'en' | 'hi' | 'kn') => {
+    try {
+      setLoadingNotice(true);
+      const data = await api.consent.getNotices(lang);
+      setNotice(data);
+    } catch (err) {
+      console.error('Failed to load statutory notice:', err);
+    } finally {
+      setLoadingNotice(false);
+    }
+  };
+
   useEffect(() => {
-    fetchUserLedger(searchUserRef);
+    loadAnalytics();
+    loadRecords();
+    loadNotice(selectedLanguage);
   }, []);
+
+  useEffect(() => {
+    loadRecords();
+  }, [statusFilter, channelFilter]);
+
+  useEffect(() => {
+    loadNotice(selectedLanguage);
+  }, [selectedLanguage]);
+
+  // Handle Search submit
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadRecords();
+  };
 
   // Handle Withdrawal (DPDP Section 6(4))
   const handleWithdraw = async (record: ConsentRecord) => {
+    if (!window.confirm(`Withdraw statutory consent for ${record.userRef}?`)) return;
     try {
       await api.consent.withdrawConsent({
         userRef: record.userRef,
         purposeId: record.purposeId,
-        reason: 'Customer initiated withdrawal via self-service portal',
+        reason: 'Customer initiated withdrawal via consent dashboard',
       });
-      setWithdrawMessage(`Consent for "${record.purposeName}" marked WITHDRAWN under Section 6(4).`);
-      fetchUserLedger(record.userRef);
+      loadRecords();
+      loadAnalytics();
       onConsentRecorded();
     } catch (err: any) {
       alert(err.response?.data?.error?.message || 'Failed to withdraw consent.');
     }
   };
 
-  // Handle Record New Consent
+  // Handle View Receipt
+  const handleViewReceipt = async (recordId: string) => {
+    try {
+      setLoadingReceipt(true);
+      const receipt = await api.consent.getReceipt(recordId);
+      setSelectedReceipt(receipt);
+    } catch (err: any) {
+      alert(err.response?.data?.error?.message || 'Failed to fetch statutory receipt.');
+    } finally {
+      setLoadingReceipt(false);
+    }
+  };
+
+  // Handle Single Consent Submission
   const handleRecordConsent = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitting(true);
@@ -101,21 +183,21 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
     }
 
     try {
+      const targetPurposeId = formPurposeId || purposes[0]?.purposeId;
       const result = await api.consent.recordConsent({
-        userRef: formUserRef,
-        purposeId: formPurposeId || purposes[0]?.purposeId,
+        userRef: formUserRef.trim(),
+        purposeId: targetPurposeId,
         channel: formChannel,
         noticeLanguage: formLanguage,
         affirmativeCheck: true,
       });
 
-      setFormSuccess(`Affirmative consent recorded for ${result.userRef} (ID: ${result.recordId}).`);
+      setFormSuccess(`Affirmative consent recorded for ${result.userRef}.`);
       setFormUserRef('');
       setFormAffirmative(false);
+      loadRecords();
+      loadAnalytics();
       onConsentRecorded();
-      if (searchUserRef === formUserRef) {
-        fetchUserLedger(formUserRef);
-      }
     } catch (err: any) {
       setFormError(err.response?.data?.error?.message || 'Failed to record consent.');
     } finally {
@@ -123,62 +205,606 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
     }
   };
 
+  // Handle Bulk CSV Submission
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBulkSubmitting(true);
+    setBulkError(null);
+    setBulkResult(null);
+
+    const targetPurposeId = bulkPurposeId || purposes[0]?.purposeId;
+    if (!targetPurposeId) {
+      setBulkError('Please select a processing purpose for the batch.');
+      setBulkSubmitting(false);
+      return;
+    }
+
+    const lines = bulkCsvText.trim().split('\n');
+    const batchRecords = lines
+      .map((line) => {
+        const parts = line.split(',').map((p) => p.trim());
+        if (!parts[0]) return null;
+        return {
+          userRef: parts[0],
+          purposeId: targetPurposeId,
+          channel: parts[1] || 'IN_PERSON_AFFIRMATIVE',
+          noticeLanguage: parts[2] || 'en',
+        };
+      })
+      .filter(Boolean) as any[];
+
+    if (batchRecords.length === 0) {
+      setBulkError('No valid rows found in CSV text.');
+      setBulkSubmitting(false);
+      return;
+    }
+
+    try {
+      const res = await api.consent.recordBulk(batchRecords);
+      setBulkResult(`Successfully imported ${res.count} consent records into the statutory ledger!`);
+      loadRecords();
+      loadAnalytics();
+      onConsentRecorded();
+    } catch (err: any) {
+      setBulkError(err.response?.data?.error?.message || 'Failed to process bulk import.');
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
+  const copyPublicLink = () => {
+    const url = `${window.location.origin}#dsr`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Top Controls */}
-      <div className="bg-white border border-slate-200 rounded p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            DPDP Consent Ledger & Multilingual Notice Generator
-          </h2>
-          <p className="text-xs text-slate-500">
-            Enforces Section 5 (Eighth Schedule Notices), Section 6 (Affirmative Action), and Section 6(4) (Immediate Withdrawal).
-          </p>
+      {/* Top Header & Analytics KPIs */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <span>DPDP Consent Ledger & Affirmative Governance</span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded border border-emerald-200">
+                DPDP Act 2023 Sec 5 & 6
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500">
+              Enterprise consent capture, multilingual statutory notices, immediate Section 6(4) withdrawal, and tamper-evident receipts.
+            </p>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded border border-slate-200">
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === 'ledger' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Enterprise Ledger
+            </button>
+            <button
+              onClick={() => setActiveTab('record')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === 'record' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Capture & Bulk Import
+            </button>
+            <button
+              onClick={() => setActiveTab('notices')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === 'notices' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Multilingual Notices & Widget
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded border border-slate-200">
-          <button
-            onClick={() => setActiveTab('notices')}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-              activeTab === 'notices' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Multilingual Notices
-          </button>
-          <button
-            onClick={() => setActiveTab('ledger')}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-              activeTab === 'ledger' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Patient Consent Ledger
-          </button>
-          <button
-            onClick={() => setActiveTab('record')}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-              activeTab === 'record' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Record Consent Event
-          </button>
-        </div>
+        {/* Analytics KPI Cards */}
+        {analytics && (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Total Consents Recorded
+              </span>
+              <div className="text-xl font-bold text-slate-900 mt-1">{analytics.total}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Across all registered purposes</div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Active Compliance Posture
+              </span>
+              <div className="text-xl font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
+                <span>{analytics.activeRate}%</span>
+                <span className="text-xs font-semibold text-slate-600">({analytics.active} Active)</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div
+                  className="bg-emerald-500 h-1.5 rounded-full"
+                  style={{ width: `${analytics.activeRate}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Section 6(4) Withdrawals
+              </span>
+              <div className="text-xl font-bold text-amber-600 mt-1">{analytics.withdrawn}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Promptly honored and isolated</div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Top Capture Channel
+              </span>
+              <div className="text-sm font-bold text-blue-600 mt-1 truncate">
+                {Object.keys(analytics.channels)[0]?.replace('_', ' ') || 'WhatsApp & Web'}
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Affirmative Proof Logged</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {activeTab === 'notices' && (
+      {/* ======================================================== */}
+      {/* TAB 1: GLOBAL ENTERPRISE CONSENT LEDGER                  */}
+      {/* ======================================================== */}
+      {activeTab === 'ledger' && (
         <div className="space-y-4">
+          {/* Search & Filter Toolbar */}
+          <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by customer phone or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors"
+              >
+                Search
+              </button>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setTimeout(loadRecords, 10);
+                  }}
+                  className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-800"
+                >
+                  Clear
+                </button>
+              )}
+            </form>
+
+            <div className="flex items-center gap-2">
+              {/* Status Filter */}
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-500 text-[11px] font-medium">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="GIVEN">Active (GIVEN)</option>
+                  <option value="WITHDRAWN">Withdrawn</option>
+                </select>
+              </div>
+
+              {/* Channel Filter */}
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-500 text-[11px] font-medium">Channel:</span>
+                <select
+                  value={channelFilter}
+                  onChange={(e) => setChannelFilter(e.target.value)}
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                >
+                  <option value="ALL">All Channels</option>
+                  <option value="WHATSAPP_YES">WhatsApp Affirmative</option>
+                  <option value="WEB_PORTAL">Web Portal</option>
+                  <option value="IN_PERSON_AFFIRMATIVE">In-Person Slip</option>
+                  <option value="SMS_OTP">SMS OTP</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  loadRecords();
+                  loadAnalytics();
+                }}
+                className="p-1.5 text-slate-600 hover:text-slate-900 border border-slate-300 rounded hover:bg-slate-50 transition-colors"
+                title="Refresh Ledger"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingLedger ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
+                    <th className="py-3 px-4">Data Principal (User Ref)</th>
+                    <th className="py-3 px-4">Specified Purpose</th>
+                    <th className="py-3 px-4">Channel</th>
+                    <th className="py-3 px-4">Notice Lang</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Captured At</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {loadingLedger ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-xs text-slate-400">
+                        <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-blue-600" />
+                        Loading Enterprise Consent Ledger...
+                      </td>
+                    </tr>
+                  ) : allRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-xs text-slate-500">
+                        No consent records found matching the current search filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    allRecords.map((record) => (
+                      <tr key={record.recordId} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4 font-mono font-medium text-slate-900">
+                          {record.userRef}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-800">{record.purposeName}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{record.legalBasis}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            {record.channel.includes('WHATSAPP') ? (
+                              <MessageSquare className="w-3 h-3 text-emerald-600" />
+                            ) : record.channel.includes('WEB') ? (
+                              <Laptop className="w-3 h-3 text-blue-600" />
+                            ) : (
+                              <FileText className="w-3 h-3 text-slate-500" />
+                            )}
+                            <span>{record.channel.replace(/_/g, ' ')}</span>
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] uppercase text-slate-600">
+                          {record.noticeLanguage}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant={record.status === 'GIVEN' ? 'success' : 'neutral'}
+                            label={record.status === 'GIVEN' ? 'ACTIVE (GIVEN)' : 'WITHDRAWN'}
+                          />
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
+                          {new Date(record.capturedAt).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleViewReceipt(record.recordId)}
+                              className="px-2 py-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded transition-colors flex items-center gap-1 border border-blue-200/60"
+                              title="View Statutory Consent Receipt"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Receipt</span>
+                            </button>
+
+                            {record.status === 'GIVEN' && (
+                              <button
+                                onClick={() => handleWithdraw(record)}
+                                className="px-2 py-1 text-[11px] font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded transition-colors border border-rose-200/60"
+                                title="Withdraw consent under DPDP Section 6(4)"
+                              >
+                                Withdraw
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+              <span>Showing {allRecords.length} records</span>
+              <span className="font-mono text-[10px]">Tamper-Evident DPDP Ledger</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 2: CAPTURE NEW CONSENT & BULK IMPORT                 */}
+      {/* ======================================================== */}
+      {activeTab === 'record' && (
+        <div className="space-y-6">
+          {/* Sub-mode switcher */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+            <button
+              onClick={() => setRecordMode('single')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                recordMode === 'single'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Single Consent Registration
+            </button>
+            <button
+              onClick={() => setRecordMode('bulk')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                recordMode === 'bulk'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Bulk CSV / Batch Importer
+            </button>
+          </div>
+
+          {/* Mode 1: Single Consent Registration */}
+          {recordMode === 'single' && (
+            <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs max-w-2xl space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Register Affirmative Consent Event (Section 6)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Record unambiguous consent collected through clinic desk, online form, or WhatsApp opt-in.
+                </p>
+              </div>
+
+              {formSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{formSuccess}</span>
+                </div>
+              )}
+
+              {formError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRecordConsent} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Data Principal Identifier (Phone or Email) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +91 9845012345 or customer@example.com"
+                    value={formUserRef}
+                    onChange={(e) => setFormUserRef(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Specified Processing Purpose *
+                  </label>
+                  <select
+                    value={formPurposeId}
+                    onChange={(e) => setFormPurposeId(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                  >
+                    {purposes.map((p) => (
+                      <option key={p.purposeId} value={p.purposeId}>
+                        {p.name} ({p.legalBasis})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Collection Channel *
+                    </label>
+                    <select
+                      value={formChannel}
+                      onChange={(e) => setFormChannel(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="WHATSAPP_YES">WhatsApp Opt-in (Reply 'YES')</option>
+                      <option value="WEB_PORTAL">Web Consent Widget</option>
+                      <option value="IN_PERSON_AFFIRMATIVE">Physical Registration Slip</option>
+                      <option value="SMS_OTP">SMS OTP Verification</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Notice Language Rendered *
+                    </label>
+                    <select
+                      value={formLanguage}
+                      onChange={(e) => setFormLanguage(e.target.value as any)}
+                      className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="en">English (Schedule 8)</option>
+                      <option value="hi">हिन्दी (Hindi)</option>
+                      <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Section 6 Affirmative Check */}
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded space-y-2">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formAffirmative}
+                      onChange={(e) => setFormAffirmative(e.target.checked)}
+                      className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-blue-900 leading-snug">
+                      <strong>Section 6 Affirmative Action Verification:</strong> I certify that the data principal has made an affirmative, unambiguous opt-in after receiving the Section 5 notice.
+                    </span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={formSubmitting}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {formSubmitting ? 'Recording into Ledger...' : 'Commit Consent Record'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Mode 2: Bulk CSV / Batch Importer */}
+          {recordMode === 'bulk' && (
+            <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs max-w-3xl space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Bulk CSV & Batch Consent Importer
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Import hundreds of customer consent records at once. Format: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono">userRef,channel,language</code>
+                </p>
+              </div>
+
+              {bulkResult && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{bulkResult}</span>
+                </div>
+              )}
+
+              {bulkError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{bulkError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleBulkSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Assign Purpose for this Batch *
+                  </label>
+                  <select
+                    value={bulkPurposeId}
+                    onChange={(e) => setBulkPurposeId(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                  >
+                    {purposes.map((p) => (
+                      <option key={p.purposeId} value={p.purposeId}>
+                        {p.name} ({p.legalBasis})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>CSV Rows (userRef, channel, language) *</span>
+                    <span className="text-[10px] text-slate-400 font-normal">One record per line</span>
+                  </label>
+                  <textarea
+                    rows={6}
+                    required
+                    value={bulkCsvText}
+                    onChange={(e) => setBulkCsvText(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-3 font-mono text-[11px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="patient@aarogya.in,WHATSAPP_YES,en&#10;+919845012345,IN_PERSON_AFFIRMATIVE,kn"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-slate-500">
+                    Ready to parse {bulkCsvText.trim().split('\n').filter(Boolean).length} rows
+                  </span>
+
+                  <button
+                    type="submit"
+                    disabled={bulkSubmitting}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition-colors shadow-xs flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>{bulkSubmitting ? 'Importing Batch...' : 'Import Batch into DPDP Ledger'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: MULTILINGUAL NOTICES & SHAREABLE LINK WIDGET     */}
+      {/* ======================================================== */}
+      {activeTab === 'notices' && (
+        <div className="space-y-6">
+          {/* Shareable Public Consent Widget Link Card */}
+          <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-[10px] bg-blue-500/30 text-blue-200 border border-blue-400/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                Direct Customer Opt-In
+              </span>
+              <h3 className="text-base font-bold text-white">
+                Shareable Customer Privacy & Rights Portal Link
+              </h3>
+              <p className="text-xs text-blue-200 max-w-xl">
+                Send this link to patients via SMS, WhatsApp, or embed it on your website so users can view Section 5 notices and submit requests.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyPublicLink}
+                className="px-4 py-2 bg-white text-slate-900 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 shadow"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedLink ? 'Copied Link!' : 'Copy Portal URL'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Language Selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+            <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <Globe2 className="w-3.5 h-3.5 text-blue-600" />
-              Notice Language:
+              Notice Language (Eighth Schedule):
             </span>
             {(['en', 'hi', 'kn'] as const).map((lang) => (
               <button
                 key={lang}
                 onClick={() => setSelectedLanguage(lang)}
-                className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
                   selectedLanguage === lang
-                    ? 'bg-blue-600 text-white border-blue-600 font-semibold'
+                    ? 'bg-blue-600 text-white border-blue-600 font-semibold shadow-xs'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
@@ -187,23 +813,31 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
             ))}
           </div>
 
-          {/* Rendered Notice Card */}
+          {/* Notice Card */}
           {loadingNotice || !notice ? (
-            <div className="p-8 text-center text-xs text-slate-500 bg-white border border-slate-200 rounded">
+            <div className="p-8 text-center text-xs text-slate-500 bg-white border border-slate-200 rounded-lg">
+              <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2 text-blue-600" />
               Loading statutory notice template...
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded p-6 space-y-5">
-              <div className="border-b border-slate-200 pb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                  DPDP Act Section 5 Compliant Notice
-                </span>
-                <h3 className="text-base font-bold text-slate-900 mt-2">{notice.headline}</h3>
+            <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5 shadow-xs">
+              <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                    DPDP Act Section 5 Compliant Notice
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 mt-2">{notice.headline}</h3>
+                </div>
+                <div className="text-xs font-mono text-slate-400">
+                  Lang: {notice.language.toUpperCase()}
+                </div>
               </div>
 
               <div className="space-y-4 text-xs">
                 <div>
-                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">Personal Data Collected:</h4>
+                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">
+                    Personal Data Collected:
+                  </h4>
                   <ul className="list-disc list-inside space-y-1 text-slate-700 pl-1">
                     {notice.dataCollected.map((item, i) => (
                       <li key={i}>{item}</li>
@@ -212,19 +846,25 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">Specified Processing Purpose:</h4>
-                  <p className="text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-200">
+                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">
+                    Specified Processing Purpose:
+                  </h4>
+                  <p className="text-slate-700 leading-relaxed bg-slate-50 p-3 rounded border border-slate-200 font-medium">
                     {notice.specifiedPurpose}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">Data Principal Rights:</h4>
+                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">
+                    Data Principal Statutory Rights:
+                  </h4>
                   <p className="text-slate-700 leading-relaxed">{notice.rightsNotice}</p>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">Consent Withdrawal (Section 6(4)):</h4>
+                  <h4 className="font-semibold text-slate-900 uppercase text-[11px] mb-1">
+                    Consent Withdrawal (Section 6(4)):
+                  </h4>
                   <p className="text-slate-700 leading-relaxed">{notice.withdrawalInstructions}</p>
                 </div>
 
@@ -233,14 +873,16 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
                     <span className="font-bold">Grievance Redressal Officer: </span>
                     <span>{notice.grievanceRedressal.officerTitle} ({notice.grievanceRedressal.email})</span>
                   </div>
-                  <span className="text-[11px] font-mono text-blue-700">Turnaround: {notice.grievanceRedressal.turnaroundDays} days</span>
+                  <span className="text-[11px] font-mono text-blue-700">
+                    Turnaround: {notice.grievanceRedressal.turnaroundDays} days
+                  </span>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 flex items-start gap-2 bg-slate-50 p-3 rounded">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <p className="font-medium text-slate-800 text-[11px] italic">
-                    "{notice.affirmativeStatement}"
-                  </p>
+                  <span className="text-[11px] text-slate-600 leading-snug">
+                    <strong>Statutory Verification:</strong> This notice is formulated deterministically under Section 5 of the Digital Personal Data Protection Act, 2023 and adheres to the Eighth Schedule multilingual transparency mandate.
+                  </span>
                 </div>
               </div>
             </div>
@@ -248,207 +890,118 @@ export const ConsentPage: React.FC<ConsentPageProps> = ({ purposes, onConsentRec
         </div>
       )}
 
-      {activeTab === 'ledger' && (
-        <div className="bg-white border border-slate-200 rounded overflow-hidden space-y-4 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Individual Patient / Customer Consent History
-              </h4>
-              <p className="text-xs text-slate-500">Query complete audit trail of consent events by phone or email.</p>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                fetchUserLedger(searchUserRef);
-              }}
-              className="flex items-center gap-2"
-            >
-              <input
-                type="text"
-                placeholder="+919876543210"
-                value={searchUserRef}
-                onChange={(e) => setSearchUserRef(e.target.value)}
-                className="px-3 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-52 font-mono"
-              />
+      {/* ======================================================== */}
+      {/* VERIFIABLE STATUTORY CONSENT RECEIPT MODAL               */}
+      {/* ======================================================== */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Verifiable DPDP Consent Receipt
+                  </h3>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {selectedReceipt.receiptId}
+                  </span>
+                </div>
+              </div>
               <button
-                type="submit"
-                className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800"
+                onClick={() => setSelectedReceipt(null)}
+                className="text-slate-400 hover:text-slate-700 p-1"
               >
-                Search
+                <X className="w-4 h-4" />
               </button>
-            </form>
-          </div>
-
-          {withdrawMessage && (
-            <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2 rounded">
-              {withdrawMessage}
-            </p>
-          )}
-
-          <div className="overflow-x-auto border border-slate-200 rounded">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold text-[10px]">
-                <tr>
-                  <th className="py-2.5 px-4">Subject Identifier</th>
-                  <th className="py-2.5 px-4">Purpose</th>
-                  <th className="py-2.5 px-4">Status</th>
-                  <th className="py-2.5 px-4">Channel & Notice</th>
-                  <th className="py-2.5 px-4">Captured At</th>
-                  <th className="py-2.5 px-4">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-normal">
-                {loadingLedger ? (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-slate-500">
-                      Loading ledger records...
-                    </td>
-                  </tr>
-                ) : userRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
-                      No consent records found for identifier "{searchUserRef}".
-                    </td>
-                  </tr>
-                ) : (
-                  userRecords.map((r) => (
-                    <tr key={r.recordId} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-4 font-mono font-medium text-slate-900">{r.userRef}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-900">{r.purposeName}</td>
-                      <td className="py-3 px-4">
-                        <Badge status={r.status} size="sm" />
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">
-                        <span className="font-mono text-[11px]">{r.channel}</span> ({r.noticeLanguage.toUpperCase()})
-                      </td>
-                      <td className="py-3 px-4 tabular-nums text-slate-500">
-                        {new Date(r.capturedAt).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4">
-                        {r.status === 'GIVEN' ? (
-                          <button
-                            onClick={() => handleWithdraw(r)}
-                            className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100"
-                          >
-                            Withdraw Consent
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Withdrawn</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'record' && (
-        <div className="bg-white border border-slate-200 rounded p-6 max-w-xl mx-auto space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Record Affirmative Consent Event (DPDP Section 6)
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Test affirmative consent recording. If affirmative action is unchecked, the request will be rejected.
-            </p>
-          </div>
-
-          <form onSubmit={handleRecordConsent} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Patient Phone or Email *</label>
-              <input
-                type="text"
-                required
-                placeholder="+919876543210"
-                value={formUserRef}
-                onChange={(e) => setFormUserRef(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-              />
             </div>
 
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Processing Purpose *</label>
-              <select
-                value={formPurposeId}
-                onChange={(e) => setFormPurposeId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                    Data Principal
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {selectedReceipt.dataPrincipal}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                    Data Fiduciary
+                  </span>
+                  <span className="font-bold text-slate-900 truncate block">
+                    {selectedReceipt.organization}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                  Specified Purpose & Legal Basis
+                </span>
+                <div className="font-semibold text-slate-900 mt-0.5">
+                  {selectedReceipt.purpose}
+                </div>
+                <div className="text-[10px] font-mono text-blue-600">
+                  {selectedReceipt.legalBasis}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                    Status
+                  </span>
+                  <Badge
+                    variant={selectedReceipt.status === 'GIVEN' ? 'success' : 'neutral'}
+                    label={selectedReceipt.status}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                    Channel & Language
+                  </span>
+                  <span className="text-slate-800 font-medium">
+                    {selectedReceipt.channel.replace(/_/g, ' ')} ({selectedReceipt.noticeLanguage.toUpperCase()})
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                  Timestamp Logged
+                </span>
+                <span className="font-mono text-slate-700">
+                  {new Date(selectedReceipt.capturedAt).toLocaleString()}
+                </span>
+              </div>
+
+              {/* Cryptographic Proof */}
+              <div className="bg-slate-900 text-slate-200 p-3 rounded-lg font-mono text-[10px] space-y-1">
+                <span className="text-slate-400 block uppercase font-bold tracking-wider">
+                  Tamper-Evident SHA-256 Receipt Proof:
+                </span>
+                <div className="text-emerald-400 break-all select-all">
+                  {selectedReceipt.sha256Proof}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[10px] text-slate-400">
+                DPDP Act 2023 Statutory Compliance
+              </span>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold"
               >
-                {purposes.map((p) => (
-                  <option key={p.purposeId} value={p.purposeId}>
-                    {p.name} ({p.legalBasis})
-                  </option>
-                ))}
-              </select>
+                Close Receipt
+              </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">Collection Channel</label>
-                <select
-                  value={formChannel}
-                  onChange={(e) => setFormChannel(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                >
-                  <option value="WHATSAPP_YES">WhatsApp Reply (YES)</option>
-                  <option value="PAPER_SLIP">Signed Physical Paper Slip</option>
-                  <option value="WEB_PORTAL">Web Patient Portal</option>
-                  <option value="RECEPTION_DESK">Clinic Reception Desk</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">Notice Language Presented</label>
-                <select
-                  value={formLanguage}
-                  onChange={(e) => setFormLanguage(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                >
-                  <option value="en">English</option>
-                  <option value="hi">हिन्दी (Hindi)</option>
-                  <option value="kn">ಕನ್ನಡ (Kannada)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded flex items-start gap-2.5">
-              <input
-                type="checkbox"
-                id="affirmativeCheck"
-                checked={formAffirmative}
-                onChange={(e) => setFormAffirmative(e.target.checked)}
-                className="mt-0.5 rounded border-amber-400 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="affirmativeCheck" className="text-slate-800 text-xs cursor-pointer">
-                <span className="font-bold">Affirmative Action Check: </span>
-                Data principal made an explicit affirmative action granting informed consent. (Silence or pre-ticked box is invalid under DPDP Section 6).
-              </label>
-            </div>
-
-            {formSuccess && (
-              <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded">
-                {formSuccess}
-              </p>
-            )}
-
-            {formError && (
-              <p className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-2.5 rounded">
-                {formError}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={formSubmitting}
-              className="w-full py-2.5 px-4 font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded transition-colors disabled:opacity-50"
-            >
-              {formSubmitting ? 'Recording Consent in Immutable Ledger...' : 'Record Affirmative Consent'}
-            </button>
-          </form>
+          </div>
         </div>
       )}
     </div>

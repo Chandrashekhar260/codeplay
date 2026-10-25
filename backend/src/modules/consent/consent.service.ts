@@ -233,11 +233,182 @@ export async function getUserConsentLedger(tenantId: string, userRef: string) {
       legalBasis: r.purpose.legalBasis,
       status: r.status,
       channel: r.channel,
-      noticeLanguage: extra?.notice_language || 'en',
+      noticeLanguage: extra?.notice_language || r.noticeLanguage || 'en',
       capturedAt: r.capturedAt,
-      withdrawnAt: extra?.withdrawn_at || null,
+      withdrawnAt: extra?.withdrawn_at || r.withdrawnAt || null,
     };
   });
+}
+
+/**
+ * Enterprise Global Consent Ledger: Fetch all consent records with filtering and search
+ */
+export async function getAllConsentRecords(
+  tenantId: string,
+  options?: { status?: string; search?: string; channel?: string; limit?: number }
+) {
+  const where: any = { tenantId };
+
+  if (options?.status && options.status !== 'ALL') {
+    where.status = options.status;
+  }
+
+  if (options?.channel && options.channel !== 'ALL') {
+    where.channel = options.channel;
+  }
+
+  if (options?.search && options.search.trim()) {
+    where.userRef = {
+      contains: options.search.trim().toLowerCase(),
+      mode: 'insensitive',
+    };
+  }
+
+  const records = await prisma.consentRecord.findMany({
+    where,
+    include: {
+      purpose: true,
+    },
+    orderBy: { capturedAt: 'desc' },
+    take: options?.limit || 200,
+  });
+
+  return records.map((r) => ({
+    recordId: r.recordId,
+    userRef: r.userRef,
+    purposeId: r.purposeId,
+    purposeName: r.purpose.name,
+    legalBasis: r.purpose.legalBasis,
+    status: r.status,
+    channel: r.channel,
+    noticeLanguage: r.noticeLanguage || 'en',
+    capturedAt: r.capturedAt,
+    withdrawnAt: r.withdrawnAt,
+  }));
+}
+
+/**
+ * Consent Analytics & Posture for Enterprise Dashboard
+ */
+export async function getConsentAnalytics(tenantId: string) {
+  const allRecords = await prisma.consentRecord.findMany({
+    where: { tenantId },
+    include: { purpose: true },
+  });
+
+  const total = allRecords.length;
+  const active = allRecords.filter((r) => r.status === 'GIVEN').length;
+  const withdrawn = allRecords.filter((r) => r.status === 'WITHDRAWN').length;
+  const activeRate = total > 0 ? Math.round((active / total) * 100) : 100;
+
+  const channels: Record<string, number> = {};
+  const languages: Record<string, number> = {};
+  const purposes: Record<string, { purposeId: string; name: string; count: number; active: number }> = {};
+
+  allRecords.forEach((r) => {
+    channels[r.channel] = (channels[r.channel] || 0) + 1;
+    const lang = r.noticeLanguage || 'en';
+    languages[lang] = (languages[lang] || 0) + 1;
+
+    if (!purposes[r.purposeId]) {
+      purposes[r.purposeId] = { purposeId: r.purposeId, name: r.purpose.name, count: 0, active: 0 };
+    }
+    purposes[r.purposeId].count++;
+    if (r.status === 'GIVEN') purposes[r.purposeId].active++;
+  });
+
+  return {
+    total,
+    active,
+    withdrawn,
+    activeRate,
+    channels,
+    languages,
+    purposes: Object.values(purposes),
+  };
+}
+
+/**
+ * Bulk Consent Importer for MSMEs and Hospitals
+ */
+export async function recordBulkConsents(
+  tenantId: string,
+  userId: string,
+  records: Array<{
+    userRef: string;
+    purposeId: string;
+    channel?: string;
+    noticeLanguage?: string;
+  }>,
+  ipAddress?: string,
+  userAgent?: string
+) {
+  const created: any[] = [];
+
+  for (const item of records) {
+    if (!item.userRef || !item.purposeId) continue;
+    const rec = await prisma.consentRecord.create({
+      data: {
+        tenantId,
+        userRef: item.userRef.trim(),
+        purposeId: item.purposeId,
+        status: 'GIVEN',
+        channel: item.channel || 'IN_PERSON_AFFIRMATIVE',
+        noticeLanguage: item.noticeLanguage || 'en',
+      },
+      include: { purpose: true },
+    });
+    created.push(rec);
+  }
+
+  await recordAuditEvent({
+    tenantId,
+    actorId: userId,
+    action: 'BULK_CONSENT_CAPTURED',
+    resourceType: 'CONSENT_RECORD',
+    resourceId: `batch-${created.length}`,
+    diffJson: { count: created.length },
+    ipAddress,
+    userAgent,
+  });
+
+  return { count: created.length, records: created };
+}
+
+/**
+ * Verifiable DPDP Statutory Consent Receipt
+ */
+export async function getConsentReceipt(tenantId: string, recordId: string) {
+  const record = await prisma.consentRecord.findFirst({
+    where: { recordId, tenantId },
+    include: {
+      purpose: true,
+      tenant: true,
+    },
+  });
+
+  if (!record) {
+    throw new Error('CONSENT_RECORD_NOT_FOUND: Specified consent receipt does not exist.');
+  }
+
+  return {
+    receiptId: `REC-${record.recordId.slice(0, 8).toUpperCase()}`,
+    recordId: record.recordId,
+    dataPrincipal: record.userRef,
+    organization: record.tenant.name,
+    purpose: record.purpose.name,
+    legalBasis: record.purpose.legalBasis,
+    status: record.status,
+    channel: record.channel,
+    noticeLanguage: record.noticeLanguage || 'en',
+    capturedAt: record.capturedAt,
+    withdrawnAt: record.withdrawnAt,
+    statutoryMandate: 'Digital Personal Data Protection Act, 2023 (Section 5 & 6)',
+    sha256Proof: require('crypto')
+      .createHash('sha256')
+      .update(`${record.recordId}:${record.userRef}:${record.purposeId}:${record.capturedAt}`)
+      .digest('hex'),
+  };
 }
 
 export async function createCollectionPoint(

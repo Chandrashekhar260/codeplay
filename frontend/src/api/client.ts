@@ -12,6 +12,14 @@ import type {
   ConsentNotice,
   DsrRequest,
   UserTraversalReport,
+  BusinessInfo,
+  DsrTrackReport,
+  ConsentAnalytics,
+  ConsentReceipt,
+  CookieScanSummary,
+  CookieStats,
+  DetectedCookie,
+  CookieCategory,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -185,12 +193,55 @@ export const api = {
       const res = await apiClient.get(`/consent/records/user/${encodeURIComponent(userRef)}`);
       return res.data.data.records;
     },
+    getAllRecords: async (params?: { status?: string; channel?: string; search?: string }): Promise<ConsentRecord[]> => {
+      const query = new URLSearchParams();
+      if (params?.status) query.append('status', params.status);
+      if (params?.channel) query.append('channel', params.channel);
+      if (params?.search) query.append('search', params.search);
+      const res = await apiClient.get(`/consent/records?${query.toString()}`);
+      return res.data.data.records;
+    },
+    getAnalytics: async (): Promise<ConsentAnalytics> => {
+      const res = await apiClient.get('/consent/analytics');
+      return res.data.data;
+    },
+    recordBulk: async (
+      records: Array<{
+        userRef: string;
+        purposeId: string;
+        channel?: string;
+        noticeLanguage?: string;
+      }>
+    ): Promise<{ count: number; records: ConsentRecord[] }> => {
+      const res = await apiClient.post('/consent/records/bulk', { records });
+      return res.data.data;
+    },
+    getReceipt: async (recordId: string): Promise<ConsentReceipt> => {
+      const res = await apiClient.get(`/consent/records/${encodeURIComponent(recordId)}/receipt`);
+      return res.data.data;
+    },
   },
 
   // DSR & Data Principal Privacy Portal (DPDP Sec 11 & 12)
   dsr: {
-    traverseUserGraph: async (userRef: string): Promise<UserTraversalReport> => {
-      const res = await apiClient.post('/dsr/portal/traverse', { userRef });
+    getBusinesses: async (): Promise<BusinessInfo[]> => {
+      const res = await apiClient.get('/dsr/portal/businesses');
+      return res.data.data;
+    },
+    trackRequest: async (requestId: string): Promise<DsrTrackReport> => {
+      const res = await apiClient.get(`/dsr/portal/track/${encodeURIComponent(requestId)}`);
+      return res.data.data;
+    },
+    traverseUserGraph: async (
+      userRef: string,
+      businessWebsite?: string,
+      tenantId?: string
+    ): Promise<UserTraversalReport> => {
+      const res = await apiClient.post('/dsr/portal/traverse', {
+        userRef,
+        businessWebsite,
+        tenantId,
+      });
       return res.data.data;
     },
     submitPortalRequest: async (data: {
@@ -201,6 +252,8 @@ export const api = {
       currentValue?: string;
       correctedValue?: string;
       affectedActivityId?: string;
+      businessWebsite?: string;
+      tenantId?: string;
     }): Promise<DsrRequest> => {
       const res = await apiClient.post('/dsr/portal/submit', data);
       return res.data.data;
@@ -226,6 +279,37 @@ export const api = {
       }
     ): Promise<DsrRequest> => {
       const res = await apiClient.post(`/dsr/requests/${requestId}/resolve`, data);
+      return res.data.data;
+    },
+  },
+
+  // Cookie Governance & CMP Banner (DPDP Act 2023)
+  cookies: {
+    scan: async (websiteUrl: string): Promise<CookieScanSummary> => {
+      const res = await apiClient.post('/cookies/scan', { websiteUrl });
+      return res.data.data;
+    },
+    getInventory: async (): Promise<CookieScanSummary> => {
+      const res = await apiClient.get('/cookies/inventory');
+      return res.data.data;
+    },
+    updateCookie: async (
+      cookieId: string,
+      data: { category?: CookieCategory; purpose?: string }
+    ): Promise<DetectedCookie> => {
+      const res = await apiClient.patch(`/cookies/${encodeURIComponent(cookieId)}`, data);
+      return res.data.data;
+    },
+    getStats: async (): Promise<CookieStats> => {
+      const res = await apiClient.get('/cookies/stats');
+      return res.data.data;
+    },
+    logConsent: async (data: {
+      visitorId?: string;
+      accepted: CookieCategory[];
+      rejected: CookieCategory[];
+    }): Promise<any> => {
+      const res = await apiClient.post('/cookies/consent', data);
       return res.data.data;
     },
   },

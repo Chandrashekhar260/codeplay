@@ -42,7 +42,9 @@ async function main() {
   // 3. Sample User (Ramesh Kumar)
   const user = await prisma.user.upsert({
     where: { email: 'ramesh.kumar@aarogyadiagnostics.in' },
-    update: {},
+    update: {
+      passwordHash: samplePasswordHash,
+    },
     create: {
       id: 'sample-user-ramesh-kumar',
       tenantId: tenant.id,

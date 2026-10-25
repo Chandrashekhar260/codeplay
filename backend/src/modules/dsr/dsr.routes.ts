@@ -5,6 +5,8 @@ import {
   listRequestsHandler,
   getAlertsHandler,
   resolveRequestHandler,
+  getBusinessesHandler,
+  trackRequestHandler,
 } from './dsr.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireTenant } from '../../middleware/tenant';
@@ -29,6 +31,9 @@ async function resolvePortalTenant(req: any, res: any, next: any) {
 // ==========================================
 // 1. Data Principal Self-Service Portal (Public / Citizen)
 // ==========================================
+router.get('/portal/businesses', getBusinessesHandler);
+router.get('/portal/track/:requestId', trackRequestHandler);
+router.post('/portal/track', trackRequestHandler);
 router.post('/portal/traverse', resolvePortalTenant, portalTraverseHandler);
 router.post('/portal/submit', resolvePortalTenant, portalSubmitHandler);
 

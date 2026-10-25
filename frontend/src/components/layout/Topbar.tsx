@@ -33,6 +33,10 @@ const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     title: 'Data Subject Requests (DSR)',
     subtitle: 'Manage and fulfil data principal rights requests under DPDP Act Section 11–13.',
   },
+  cookies: {
+    title: 'Website Cookie & Tracker Governance',
+    subtitle: 'Automated crawler discovery, tracker inventory categorization, and DPDP Section 6 CMP banner.',
+  },
   audit: {
     title: 'Append-Only Audit Trail',
     subtitle: 'Tamper-evident system ledger of every classification, scan, and consent event.',

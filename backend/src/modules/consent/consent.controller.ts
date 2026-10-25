@@ -4,7 +4,7 @@ import * as consentService from './consent.service';
 export async function createPurposeHandler(req: Request, res: Response) {
   try {
     const tenantId = req.tenantId!;
-    const userId = req.user?.userId || req.user?.id || 'system-user';
+    const userId = req.user?.userId || (req.user as any)?.id || 'system-user';
     const { name, legalBasis, version, description } = req.body;
 
     if (!name || typeof name !== 'string') {
@@ -59,7 +59,7 @@ export async function getPurposesHandler(req: Request, res: Response) {
 export async function recordConsentHandler(req: Request, res: Response) {
   try {
     const tenantId = req.tenantId!;
-    const userId = req.user?.userId || req.user?.id || 'system-user';
+    const userId = req.user?.userId || (req.user as any)?.id || 'system-user';
     const { userRef, purposeId, channel, noticeLanguage, affirmativeCheck } = req.body;
 
     if (!userRef || !purposeId) {
@@ -107,7 +107,7 @@ export async function recordConsentHandler(req: Request, res: Response) {
 export async function withdrawConsentHandler(req: Request, res: Response) {
   try {
     const tenantId = req.tenantId!;
-    const userId = req.user?.userId || req.user?.id || 'system-user';
+    const userId = req.user?.userId || (req.user as any)?.id || 'system-user';
     const { userRef, purposeId, reason } = req.body;
 
     if (!userRef || !purposeId) {
@@ -171,10 +171,117 @@ export async function getUserLedgerHandler(req: Request, res: Response) {
   }
 }
 
+/**
+ * Enterprise Global Consent Ledger: Fetch all consent records across the workspace
+ */
+export async function getAllConsentRecordsHandler(req: Request, res: Response) {
+  try {
+    const tenantId = req.tenantId!;
+    const status = req.query.status as string;
+    const channel = req.query.channel as string;
+    const search = req.query.search as string;
+
+    const records = await consentService.getAllConsentRecords(tenantId, { status, channel, search });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        records,
+        total: records.length,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FETCH_ALL_RECORDS_FAILED', message: err.message },
+    });
+  }
+}
+
+/**
+ * Enterprise Consent Analytics & DPDP Posture
+ */
+export async function getConsentAnalyticsHandler(req: Request, res: Response) {
+  try {
+    const tenantId = req.tenantId!;
+    const analytics = await consentService.getConsentAnalytics(tenantId);
+
+    res.status(200).json({
+      success: true,
+      data: analytics,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FETCH_ANALYTICS_FAILED', message: err.message },
+    });
+  }
+}
+
+/**
+ * Bulk Consent Importer (CSV / Batch)
+ */
+export async function recordBulkConsentsHandler(req: Request, res: Response) {
+  try {
+    const tenantId = req.tenantId!;
+    const userId = (req.user as any)?.userId || (req.user as any)?.id || 'system-user';
+    const { records } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_BATCH', message: 'An array of consent records is required.' },
+      });
+      return;
+    }
+
+    const result = await consentService.recordBulkConsents(
+      tenantId,
+      userId,
+      records,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: `Successfully captured ${result.count} consent records in batch into DPDP ledger.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'BULK_CONSENT_FAILED', message: err.message },
+    });
+  }
+}
+
+/**
+ * Verifiable Statutory Consent Receipt
+ */
+export async function getConsentReceiptHandler(req: Request, res: Response) {
+  try {
+    const tenantId = req.tenantId!;
+    const { recordId } = req.params;
+
+    const receipt = await consentService.getConsentReceipt(tenantId, recordId);
+
+    res.status(200).json({
+      success: true,
+      data: receipt,
+    });
+  } catch (err: any) {
+    res.status(err.message.includes('NOT_FOUND') ? 404 : 500).json({
+      success: false,
+      error: { code: 'RECEIPT_NOT_FOUND', message: err.message },
+    });
+  }
+}
+
 export async function createCollectionPointHandler(req: Request, res: Response) {
   try {
     const tenantId = req.tenantId!;
-    const userId = req.user?.userId || req.user?.id || 'system-user';
+    const userId = req.user?.userId || (req.user as any)?.id || 'system-user';
     const { name, orgId, widgetConfig } = req.body;
 
     if (!name) {
@@ -226,7 +333,7 @@ export async function getCollectionPointsHandler(req: Request, res: Response) {
 export async function createPreferenceCentreHandler(req: Request, res: Response) {
   try {
     const tenantId = req.tenantId!;
-    const userId = req.user?.userId || req.user?.id || 'system-user';
+    const userId = req.user?.userId || (req.user as any)?.id || 'system-user';
     const { name, slug, configJson } = req.body;
 
     if (!name || !slug) {

@@ -8,6 +8,8 @@ export const createDsrRequestSchema = z.object({
   currentValue: z.string().optional(),
   correctedValue: z.string().optional(),
   affectedActivityId: z.string().uuid().optional(),
+  tenantId: z.string().optional(),
+  businessWebsite: z.string().optional(),
 });
 
 export const resolveDsrRequestSchema = z.object({
@@ -18,7 +20,14 @@ export const resolveDsrRequestSchema = z.object({
 
 export const portalAccessQuerySchema = z.object({
   userRef: z.string().min(3, 'User reference (email or phone) is required'),
+  tenantId: z.string().optional(),
+  businessWebsite: z.string().optional(),
+});
+
+export const trackRequestSchema = z.object({
+  requestId: z.string().min(3, 'Request ID is required'),
 });
 
 export type CreateDsrRequestInput = z.infer<typeof createDsrRequestSchema>;
 export type ResolveDsrRequestInput = z.infer<typeof resolveDsrRequestSchema>;
+
